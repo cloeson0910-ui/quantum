@@ -161,6 +161,7 @@ var currentUser = null;
 var currentClientRow = null;
 var currentTier = "light";
 var FREE_MONTHLY_LIMIT = 4;
+var authReadyDone = false;
 
 function val(id){ return document.getElementById(id).value.trim(); }
 function numVal(id){ var v = document.getElementById(id).value; return v === "" ? null : Number(v); }
@@ -202,9 +203,11 @@ document.getElementById("signupBtn").addEventListener("click", async function(){
 });
 
 async function onAuthReady(){
+  if(authReadyDone) return;
   var sessionResult = await client.auth.getSession();
   var session = sessionResult.data.session;
   if(!session){ return; }
+  authReadyDone = true;
   currentUser = session.user;
 
   var clientResult = await client.from("quantum_clients").select("*").eq("id", currentUser.id).single();
@@ -231,7 +234,7 @@ async function onAuthReady(){
   // Default Light (nessun costo automatico), selettore visibile solo per questo account,
   // stesso principio del simulatore admin di Folium: mai motori a pagamento senza conferma esplicita. ----
   var isTestAccount = (currentUser.email === "claudio.romano@bluewin.ch");
-  if(isTestAccount){
+  if(isTestAccount && !document.getElementById("planSimulator")){
     currentTier = "light";
     var simulatorBox = document.createElement("div");
     simulatorBox.className = "card";

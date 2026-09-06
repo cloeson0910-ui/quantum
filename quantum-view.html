@@ -604,9 +604,16 @@ async function generateShareLink(){
   document.getElementById("shareProgressPhase").style.display = "block";
   document.getElementById("shareResultPhase").style.display = "none";
   startShareAdWidget();
-  setShareProgress(15, "Generazione PDF in corso...");
+  setShareProgress(10, "Preparazione condivisione...");
 
   try{
+    // Indispensabile PRIMA di generare il PDF: Browserless è un browser anonimo, senza
+    // la sessione di login dell'agenzia — senza questo flag, la sicurezza del database
+    // (RLS) blocca la lettura e il PDF fotografa la pagina di login invece del report.
+    var shareFlagResult = await client.from("quantum_valuations").update({ is_shared: true }).eq("id", id);
+    if(shareFlagResult.error) throw new Error("Impossibile abilitare la condivisione: " + shareFlagResult.error.message);
+
+    setShareProgress(25, "Generazione PDF in corso...");
     var pdfResult = await fetch(FOLIUM_URL + "/functions/v1/folium-generate-pdf", {
       method: "POST",
       headers: {

@@ -561,9 +561,10 @@ document.getElementById("calculateBtn").addEventListener("click", async function
     var manualPrices = priceSources.filter(function(p){ return p.source.indexOf("Agenzia") === 0; });
     var cleanAutomated = trimOutliers(automatedPrices);
     var cleanPrices = cleanAutomated.concat(manualPrices.map(function(p){ return p.value; }));
-    var usedSources = priceSources.filter(function(p){
+    var usedEntries = priceSources.filter(function(p){
       return p.source.indexOf("Agenzia") === 0 || cleanAutomated.indexOf(p.value) !== -1;
-    }).map(function(p){ return p.source; })
+    });
+    var usedSources = usedEntries.map(function(p){ return p.source; })
       .filter(function(s, i, arr){ return arr.indexOf(s) === i; }); // fonti uniche, senza duplicati
 
     var avgPricePerSqm = cleanPrices.reduce(function(a,b){return a+b;},0) / cleanPrices.length;
@@ -602,6 +603,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
       equivalent_surface: equivSurface,
       avg_price_per_sqm: avgPricePerSqm,
       price_sources_used: usedSources,
+      price_entries: usedEntries,
       comparative_value: comparativeValue,
       comparative_min: comparativeMin,
       comparative_max: comparativeMax,

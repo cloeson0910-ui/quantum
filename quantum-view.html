@@ -316,10 +316,17 @@ async function loadReport(){
   }
   addRow(calcTable, "Valore finale", formatEuro(calc.final_value));
 
-  // ---- Dato di mercato base ----
+  // ---- Dato di mercato base: tutti i valori usati, ognuno con la sua fonte reale ----
   var marketTable = document.getElementById("marketTable");
-  addRow(marketTable, "Prezzo/mq (fonte pubblica)", calc.market_price_per_sqm ? formatEuro(calc.market_price_per_sqm) + "/mq" : "Non disponibile");
-  addRow(marketTable, "Fonte", calc.market_source || "—");
+  if(calc.price_entries && calc.price_entries.length){
+    calc.price_entries.forEach(function(entry){
+      var isAgency = entry.source.indexOf("Agenzia") === 0;
+      var label = isAgency ? "<b style='color:var(--gold-dark);'>" + entry.source + "</b>" : entry.source;
+      addRow(marketTable, label, formatEuro(entry.value) + "/mq");
+    });
+  } else {
+    addRow(marketTable, "Prezzo/mq (fonte pubblica)", calc.market_price_per_sqm ? formatEuro(calc.market_price_per_sqm) + "/mq" : "Non disponibile");
+  }
 
   // ---- Comparabili dettagliati ----
   if(calc.ai_comparables && calc.ai_comparables.length){
@@ -437,8 +444,15 @@ async function loadReport(){
   if(!isPro){
     try{
       var adsResult = await foliumClient.from("folium_advertisers").select("*").eq("active", true).limit(6);
-      if(adsResult.data && adsResult.data.length){
-        var allAds = adsResult.data;
+      if(adsResult.error){
+        console.error("Errore query folium_advertisers:", adsResult.error);
+        document.getElementById("adSlot").style.display = "block";
+        document.getElementById("adSlot").innerHTML = "<div class='no-print' style='font-size:11px;color:#a12525;padding:10px;'>Debug: " + adsResult.error.message + "</div>";
+      } else if(!adsResult.data || !adsResult.data.length){
+        document.getElementById("adSlot").style.display = "block";
+        document.getElementById("adSlot").innerHTML = "<div class='no-print' style='font-size:11px;color:var(--gray);padding:10px;'>Debug: nessun inserzionista attivo trovato su Folium.</div>";
+      } else {
+      var allAds = adsResult.data;
         var names = allAds.map(function(a){ return a.name || ""; }).filter(Boolean);
         document.getElementById("printAdFooter").textContent = "Sponsor: " + names.join(" · ");
 
@@ -465,7 +479,9 @@ async function loadReport(){
           (ad.logo_url ? "<img class='ad-photo' src='" + ad.logo_url + "'>" : "") +
           "<div class='ad-caption'>" + (ad.name || "") + "</div>";
       }
-    }catch(e){ /* pubblicità non essenziale, nessun blocco in caso di errore */ }
+    }catch(e){
+      console.error("Errore imprevisto nel caricamento inserzionisti:", e);
+    }
   }
 
   document.getElementById("loadingMsg").style.display = "none";

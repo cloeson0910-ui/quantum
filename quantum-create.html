@@ -56,6 +56,8 @@
   Ti serve anche un dossier d'investimento completo? <a href="https://folium.dominus-suite.it/folium-plans.html" target="_blank" rel="noopener" style="color:var(--gold-dark);font-weight:700;text-decoration:none;">Generalo gratis con Folium →</a>
 </div>
 
+<div id="createAdSlot" style="display:none;text-align:center;padding:12px 20px;border-bottom:1px solid var(--border);background:#fff;"></div>
+
 <main>
 
   <div id="authBox">
@@ -158,10 +160,28 @@
         <div><label>Garage (mq)</label><input type="number" id="garageSqm"></div>
         <div><label>Giardino (mq)</label><input type="number" id="gardenSqm"></div>
       </div>
+      <label>Accessori</label>
       <div class="pill-row">
-        <label class="pill" id="pillSeaView"><input type="checkbox" id="hasSeaView"><span class="emoji">🌊</span>Vista mare</label>
-        <label class="pill" id="pillHistoricCenter"><input type="checkbox" id="hasHistoricCenter"><span class="emoji">⛲</span>Centro storico</label>
-        <label class="pill" id="pillRented"><input type="checkbox" id="isRented"><span class="emoji">🔑</span>Attualmente locato</label>
+        <label class="pill"><input type="checkbox" id="featPool"><span class="emoji">🏊</span>Piscina</label>
+        <label class="pill"><input type="checkbox" id="hasSeaView"><span class="emoji">🌊</span>Vista mare</label>
+        <label class="pill"><input type="checkbox" id="featGarden"><span class="emoji">🌳</span>Giardino</label>
+        <label class="pill"><input type="checkbox" id="featGarage"><span class="emoji">🚗</span>Garage</label>
+        <label class="pill"><input type="checkbox" id="featTerrace"><span class="emoji">🏛️</span>Terrazza</label>
+        <label class="pill"><input type="checkbox" id="featAnnex"><span class="emoji">🏠</span>Annesso/Dependance</label>
+        <label class="pill"><input type="checkbox" id="featFireplace"><span class="emoji">🔥</span>Camino</label>
+        <label class="pill"><input type="checkbox" id="featAC"><span class="emoji">❄️</span>Aria condizionata</label>
+        <label class="pill"><input type="checkbox" id="featElevator"><span class="emoji">🛗</span>Ascensore</label>
+        <label class="pill"><input type="checkbox" id="featGym"><span class="emoji">🏋️</span>Palestra</label>
+        <label class="pill"><input type="checkbox" id="featWineCellar"><span class="emoji">🍷</span>Cantina vini</label>
+        <label class="pill"><input type="checkbox" id="featSecurity"><span class="emoji">🔒</span>Sistema di sicurezza</label>
+        <label class="pill"><input type="checkbox" id="featSolar"><span class="emoji">☀️</span>Pannelli solari</label>
+        <label class="pill"><input type="checkbox" id="featSeaAccess"><span class="emoji">⚓</span>Accesso privato al mare</label>
+        <label class="pill"><input type="checkbox" id="featHeating"><span class="emoji">🌡️</span>Riscaldamento</label>
+        <label class="pill"><input type="checkbox" id="featHabitability"><span class="emoji">📋</span>Agibilità</label>
+        <label class="pill"><input type="checkbox" id="featParking"><span class="emoji">🅿️</span>Parcheggio</label>
+        <label class="pill"><input type="checkbox" id="featSeafront"><span class="emoji">🏖️</span>Fronte mare</label>
+        <label class="pill"><input type="checkbox" id="hasHistoricCenter"><span class="emoji">⛲</span>Centro storico</label>
+        <label class="pill"><input type="checkbox" id="isRented"><span class="emoji">🔑</span>Attualmente locato</label>
       </div>
       <div id="rentBox" style="display:none;">
         <label>Canone annuo attuale (€)</label>
@@ -183,6 +203,25 @@
 var SUPABASE_URL = "https://znjycwnwkjrzgwvxhojp.supabase.co";
 var SUPABASE_ANON_KEY = "sb_publishable_gTcYFucCifjDUfuvhBhgwg_FSldicss";
 var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+var FOLIUM_URL = "https://jgsmebtiwgwegjcytmee.supabase.co";
+var FOLIUM_ANON_KEY = "sb_publishable_ToGgNAX4tIn6O7gb6hMa4A_kRi1yztz";
+var foliumClient = window.supabase.createClient(FOLIUM_URL, FOLIUM_ANON_KEY);
+
+async function loadCreateAdSlot(){
+  try{
+    var adsResult = await foliumClient.from("folium_advertisers").select("*").limit(1);
+    if(adsResult.data && adsResult.data.length){
+      var ad = adsResult.data[0];
+      var slot = document.getElementById("createAdSlot");
+      slot.style.display = "block";
+      slot.innerHTML =
+        (ad.logo_url ? "<img src='" + ad.logo_url + "' style='max-height:36px;margin-bottom:6px;'>" : "") +
+        "<div><a href='" + (ad.link_url || "#") + "' target='_blank' rel='noopener' style='font-size:12px;color:var(--gray);text-decoration:none;'>" + (ad.company_name || "") + "</a></div>";
+    }
+  }catch(e){ /* pubblicità non essenziale, nessun blocco */ }
+}
+loadCreateAdSlot();
 
 // ==== CREDENZIALI IMMONOVA (per chiamare i 3 motori via HTTP diretto, MAI deploy su Immonova) ====
 // ATTENZIONE: valore segnaposto, va sostituito con la vera IMMONOVA_ANON_KEY prima dell'uso reale.
@@ -567,7 +606,26 @@ document.getElementById("calculateBtn").addEventListener("click", async function
       current_annual_rent: currentAnnualRent, property_condition: propertyCondition,
       cadastral_sheet: val("cadastralSheet"), cadastral_parcel: val("cadastralParcel"),
       cadastral_sub: val("cadastralSub"), cadastral_category: val("cadastralCategory"),
-      cadastral_income: numVal("cadastralIncome")
+      cadastral_income: numVal("cadastralIncome"),
+      features: {
+        pool: document.getElementById("featPool").checked,
+        garden: document.getElementById("featGarden").checked,
+        garage: document.getElementById("featGarage").checked,
+        terrace: document.getElementById("featTerrace").checked,
+        annex: document.getElementById("featAnnex").checked,
+        fireplace: document.getElementById("featFireplace").checked,
+        air_conditioning: document.getElementById("featAC").checked,
+        elevator: document.getElementById("featElevator").checked,
+        gym: document.getElementById("featGym").checked,
+        wine_cellar: document.getElementById("featWineCellar").checked,
+        security_system: document.getElementById("featSecurity").checked,
+        solar_panels: document.getElementById("featSolar").checked,
+        private_sea_access: document.getElementById("featSeaAccess").checked,
+        heating: document.getElementById("featHeating").checked,
+        habitability: document.getElementById("featHabitability").checked,
+        parking: document.getElementById("featParking").checked,
+        seafront: document.getElementById("featSeafront").checked
+      }
     };
 
     var sellerData = { name: val("sellerName"), contact: val("sellerContact") };

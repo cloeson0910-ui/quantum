@@ -30,17 +30,6 @@
   .section{margin-bottom:28px;page-break-inside:avoid;}
   .no-print-doc{ }
   @media print{ .no-print-doc{display:none;} }
-  #printAdFooter{
-    display:none;
-  }
-  @media print{
-    #printAdFooter{
-      display:block; position:fixed; bottom:0; left:0; right:0;
-      text-align:center; font-size:10px; color:#888; padding:6px 0;
-      border-top:1px solid #ddd; background:#fff;
-    }
-    .sheet{ padding-bottom:50px; }
-  }
   .section h2{font-size:15px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gold-dark);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
   table td{padding:6px 0;border-bottom:1px solid #f1ede2;}
@@ -59,22 +48,6 @@
   .ad-slot .ad-upgrade-bar a{ color:#f0e3c8; font-weight:700; text-decoration:underline; }
   .ad-slot .ad-photo{ width:100%; max-height:280px; object-fit:cover; display:block; }
   .ad-slot .ad-caption{ text-align:center; padding:10px; font-size:13px; color:var(--gray); }
-  .ad-full-page{
-    display:none;
-  }
-  @media print{
-    .ad-full-page{
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      page-break-before:always; page-break-after:always; height:100vh; text-align:center;
-      gap:24px;
-    }
-    .ad-full-page .ad-card{
-      border:1px solid var(--border); border-radius:12px; padding:32px 48px; width:70%;
-    }
-    .ad-full-page .ad-card img{ max-height:80px; max-width:220px; margin-bottom:16px; }
-    .ad-full-page .ad-card .ad-name{ font-family:Georgia,serif; font-size:20px; }
-    .ad-full-page .ad-label{ font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--gray); }
-  }
   .footer-note{margin-top:32px;font-size:11px;color:var(--gray);text-align:center;}
   #loadingMsg{text-align:center;padding:80px;color:var(--gray);}
   #contentArea{display:none;}
@@ -85,7 +58,15 @@
 
 <div class="top-bar no-print">
   <a href="quantum-profile.html">← Le mie valutazioni</a>
-  <button class="btn-print" onclick="window.print()">Stampa / Salva PDF</button>
+  <div style="display:flex;gap:10px;">
+    <button class="btn-print" id="shareBtn" onclick="generateShareLink()" style="display:none;background:transparent;border:1px solid var(--gold);color:var(--gold-dark);">Genera link</button>
+    <button class="btn-print" onclick="window.print()">Stampa / Salva PDF</button>
+  </div>
+</div>
+
+<div id="shareLinkBox" style="display:none;max-width:820px;margin:14px auto 0;padding:12px 20px;background:#f8f5ec;border:1px solid var(--border);border-radius:8px;text-align:center;font-size:13px;" class="no-print">
+  <input type="text" id="shareLinkInput" readonly style="width:70%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onclick="this.select()">
+  <button onclick="copyShareLink()" style="background:var(--gold);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:12px;cursor:pointer;">Copia</button>
 </div>
 
 <div id="loadingMsg">Caricamento report...</div>
@@ -108,7 +89,6 @@
     <div class="range" id="valueRangeText"></div>
   </div>
 
-  <div class="ad-full-page" id="adFullPageTop"></div>
 
   <div class="section" id="mapSection" style="display:none;">
     <h2>Posizione</h2>
@@ -174,9 +154,7 @@
 
   <div class="ad-slot no-print no-print-doc" id="adSlot" style="display:none;"></div>
 
-  <div class="ad-full-page" id="adFullPageBottom"></div>
 
-  <div id="printAdFooter"></div>
 
   <div class="footer-note">
     Generato con Quantum — parte di Dominus Suite<br>
@@ -219,15 +197,20 @@ async function loadReport(){
   }
 
   var sessionResult = await client.auth.getSession();
-  if(!sessionResult.data.session){
-    window.location.href = "quantum-create.html";
-    return;
-  }
+  var hasSession = !!sessionResult.data.session;
 
   var result = await client.from("quantum_valuations").select("*").eq("id", id).single();
   if(result.error || !result.data){
-    document.getElementById("loadingMsg").textContent = "Valutazione non trovata (potrebbe essere scaduta).";
+    if(!hasSession){
+      window.location.href = "quantum-create.html";
+      return;
+    }
+    document.getElementById("loadingMsg").textContent = "Valutazione non trovata (potrebbe essere scaduta o privata).";
     return;
+  }
+
+  if(hasSession){
+    document.getElementById("shareBtn").style.display = "inline-block";
   }
 
   var valuation = result.data;
@@ -440,44 +423,30 @@ async function loadReport(){
 
   document.getElementById("calculatedAtText").textContent = "Valutazione calcolata il " + formatDate(calc.calculated_at || valuation.created_at);
 
-  // ---- Pubblicità (solo Light, letta da Folium via HTTP) ----
+  // ---- Pubblicità (solo Light, schema reale: folium_ad_pages con date validità, join a folium_advertisers per il nome) ----
   if(!isPro){
     try{
-      var adsResult = await foliumClient.from("folium_advertisers").select("*").eq("active", true).limit(6);
+      var FOLIUM_TENANT_ID = "724f71d8-b499-46c1-9047-021280e913c9";
+      var today = new Date();
+      var todayStr = today.getFullYear() + "-" + String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+      var adsResult = await foliumClient.from("folium_ad_pages")
+        .select("image_url, headline, cta_url, folium_advertisers(name)")
+        .eq("tenant_id", FOLIUM_TENANT_ID).eq("active", true)
+        .lte("subscription_start", todayStr).gte("subscription_end", todayStr)
+        .limit(8);
       if(adsResult.error){
-        console.error("Errore query folium_advertisers:", adsResult.error);
-        document.getElementById("adSlot").style.display = "block";
-        document.getElementById("adSlot").innerHTML = "<div class='no-print' style='font-size:11px;color:#a12525;padding:10px;'>Debug: " + adsResult.error.message + "</div>";
-      } else if(!adsResult.data || !adsResult.data.length){
-        document.getElementById("adSlot").style.display = "block";
-        document.getElementById("adSlot").innerHTML = "<div class='no-print' style='font-size:11px;color:var(--gray);padding:10px;'>Debug: nessun inserzionista attivo trovato su Folium.</div>";
-      } else {
-      var allAds = adsResult.data;
-        var names = allAds.map(function(a){ return a.name || ""; }).filter(Boolean);
-        document.getElementById("printAdFooter").textContent = "Sponsor: " + names.join(" · ");
-
-        function buildAdCard(a){
-          return "<div class='ad-card'>" +
-            (a.logo_url ? "<img src='" + a.logo_url + "'>" : "") +
-            "<div class='ad-name'>" + (a.name || "") + "</div>" +
-            "</div>";
-        }
-
-        var firstTwo = allAds.slice(0, 2);
-        var lastTwo = allAds.slice(2, 4).length ? allAds.slice(2, 4) : allAds.slice(0, 2);
-
-        document.getElementById("adFullPageTop").innerHTML =
-          "<div class='ad-label'>Un messaggio dai nostri sponsor</div>" + firstTwo.map(buildAdCard).join("");
-        document.getElementById("adFullPageBottom").innerHTML =
-          "<div class='ad-label'>Un messaggio dai nostri sponsor</div>" + lastTwo.map(buildAdCard).join("");
-
-        var ad = allAds[0];
+        console.error("Errore query folium_ad_pages:", adsResult.error);
+      } else if(adsResult.data && adsResult.data.length){
+        var ad = adsResult.data[0];
+        var ctaHref = ad.cta_url ? (/^https?:\/\//i.test(ad.cta_url) ? ad.cta_url : "https://" + ad.cta_url) : null;
+        var caption = (ad.folium_advertisers && ad.folium_advertisers.name ? ad.folium_advertisers.name : "") + (ad.headline ? " — " + ad.headline : "");
+        var imgHtml = "<img class='ad-photo' src='" + ad.image_url + "'>";
         var adSlot = document.getElementById("adSlot");
         adSlot.style.display = "block";
         adSlot.innerHTML =
           "<div class='ad-upgrade-bar'>Passa a <b>Pro</b> per non avere pubblicità sul tuo report — <a href='quantum-checkout.html?tier=pro'>scopri di più</a></div>" +
-          (ad.logo_url ? "<img class='ad-photo' src='" + ad.logo_url + "'>" : "") +
-          "<div class='ad-caption'>" + (ad.name || "") + "</div>";
+          (ctaHref ? "<a href='" + ctaHref + "' target='_blank' rel='noopener sponsored'>" + imgHtml + "</a>" : imgHtml) +
+          "<div class='ad-caption'>" + caption + "</div>";
       }
     }catch(e){
       console.error("Errore imprevisto nel caricamento inserzionisti:", e);
@@ -486,6 +455,38 @@ async function loadReport(){
 
   document.getElementById("loadingMsg").style.display = "none";
   document.getElementById("contentArea").style.display = "block";
+}
+
+async function generateShareLink(){
+  var params = new URLSearchParams(window.location.search);
+  var id = params.get("id");
+  var btn = document.getElementById("shareBtn");
+  var original = btn.textContent;
+  btn.disabled = true; btn.textContent = "Generazione link...";
+  try{
+    var updateResult = await client.from("quantum_valuations").update({ is_shared: true }).eq("id", id);
+    if(updateResult.error){ throw new Error(updateResult.error.message); }
+    var shareUrl = window.location.origin + window.location.pathname + "?id=" + id;
+    document.getElementById("shareLinkInput").value = shareUrl;
+    document.getElementById("shareLinkBox").style.display = "block";
+  }catch(e){
+    alert("Non è stato possibile generare il link: " + e.message);
+  }finally{
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
+function copyShareLink(){
+  var input = document.getElementById("shareLinkInput");
+  input.select();
+  navigator.clipboard.writeText(input.value).then(function(){
+    var btn = event.target;
+    var original = btn.textContent;
+    btn.textContent = "Copiato ✓";
+    setTimeout(function(){ btn.textContent = original; }, 2000);
+  }).catch(function(){
+    document.execCommand("copy");
+  });
 }
 
 loadReport();

@@ -217,15 +217,25 @@ var foliumClient = window.supabase.createClient(FOLIUM_URL, FOLIUM_ANON_KEY);
 
 async function loadCreateAdSlot(){
   try{
-    var adsResult = await foliumClient.from("folium_advertisers").select("*").eq("active", true).limit(1);
+    var FOLIUM_TENANT_ID = "724f71d8-b499-46c1-9047-021280e913c9";
+    var today = new Date();
+    var todayStr = today.getFullYear() + "-" + String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+    var adsResult = await foliumClient.from("folium_ad_pages")
+      .select("image_url, headline, cta_url, folium_advertisers(name)")
+      .eq("tenant_id", FOLIUM_TENANT_ID).eq("active", true)
+      .lte("subscription_start", todayStr).gte("subscription_end", todayStr)
+      .limit(8);
     if(adsResult.data && adsResult.data.length){
       var ad = adsResult.data[0];
+      var ctaHref = ad.cta_url ? (/^https?:\/\//i.test(ad.cta_url) ? ad.cta_url : "https://" + ad.cta_url) : null;
+      var caption = (ad.folium_advertisers && ad.folium_advertisers.name ? ad.folium_advertisers.name : "") + (ad.headline ? " — " + ad.headline : "");
+      var imgHtml = "<img class='ad-photo' src='" + ad.image_url + "'>";
       var slot = document.getElementById("createAdSlot");
       slot.style.display = "block";
       slot.innerHTML =
         "<div class='ad-upgrade-bar'>Passa a <b>Pro</b> per non avere pubblicità sul tuo report — <a href='quantum-checkout.html?tier=pro'>scopri di più</a></div>" +
-        (ad.logo_url ? "<img class='ad-photo' src='" + ad.logo_url + "'>" : "") +
-        "<div class='ad-caption'>" + (ad.name || "") + "</div>";
+        (ctaHref ? "<a href='" + ctaHref + "' target='_blank' rel='noopener sponsored'>" + imgHtml + "</a>" : imgHtml) +
+        "<div class='ad-caption'>" + caption + "</div>";
     }
   }catch(e){ /* pubblicità non essenziale, nessun blocco */ }
 }

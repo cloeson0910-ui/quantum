@@ -225,6 +225,15 @@ async function loadReport(){
   addRow(propTable, "Vista mare", property.has_sea_view ? "Sì" : null);
   addRow(propTable, "Centro storico", property.has_historic_center ? "Sì" : null);
   addRow(propTable, "Attualmente locato", property.is_rented ? ("Sì — canone annuo " + formatEuro(property.current_annual_rent)) : null);
+  if(property.cadastral_sheet || property.cadastral_parcel || property.cadastral_category){
+    addRow(propTable, "Dati catastali", [
+      property.cadastral_sheet ? "Foglio " + property.cadastral_sheet : null,
+      property.cadastral_parcel ? "Particella " + property.cadastral_parcel : null,
+      property.cadastral_sub ? "Sub " + property.cadastral_sub : null,
+      property.cadastral_category ? "Cat. " + property.cadastral_category : null,
+      property.cadastral_income ? "Rendita " + formatEuro(property.cadastral_income) : null
+    ].filter(Boolean).join(" — "));
+  }
 
   // ---- Metodo di calcolo ----
   var calcTable = document.getElementById("calcTable");

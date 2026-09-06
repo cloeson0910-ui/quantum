@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nuova valutazione | Quantum</title>
+<style>
+  :root{ --gold:#a3822f; --gold-dark:#7a611f; --ink:#111; --gray:#6b6459; --border:#e2d9c4; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,sans-serif;background:#faf7f0;color:var(--ink);}
+  header{padding:24px;text-align:center;border-bottom:1px solid var(--border);background:#fff;}
+  header .logo-text{font-family:Georgia,serif;font-size:24px;}
+  main{max-width:720px;margin:0 auto;padding:24px 20px 80px;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;}
+  h2{font-size:16px;margin:0 0 16px;}
+  label{display:block;font-size:13px;color:var(--gray);margin:12px 0 4px;}
+  input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .checkbox-row{display:flex;align-items:center;gap:8px;margin-top:14px;}
+  .checkbox-row input{width:auto;}
+  button{cursor:pointer;border:none;border-radius:8px;font-weight:700;font-size:14px;padding:12px 20px;}
+  .btn-primary{background:var(--gold);color:#fff;width:100%;margin-top:8px;}
+  .btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
+  .btn-link{background:none;color:var(--gold-dark);text-decoration:underline;padding:4px;}
+  #authBox{max-width:420px;margin:60px auto;}
+  #progressMsg{font-size:13px;margin-top:12px;padding:10px;border-radius:8px;display:none;}
+  #progressMsg.info{background:#f1ede2;color:#555;display:block;}
+  #progressMsg.error{background:#fbe4e4;color:#a12525;display:block;}
+  #progressMsg.success{background:#e6f4e8;color:#1e6b31;display:block;}
+  .tier-badge{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;padding:3px 10px;border-radius:20px;background:var(--gold);color:#fff;margin-left:8px;}
+  .tier-badge.light{background:#c7bfae;}
+  .limit-box{background:#fbe4e4;color:#a12525;padding:14px;border-radius:8px;font-size:14px;margin-bottom:16px;}
+  .limit-box a{color:#a12525;font-weight:700;}
+  #formArea{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-text">quantum</span>
+  <span id="tierBadge" class="tier-badge light" style="display:none;"></span>
+</header>
+
+<main>
+
+  <div id="authBox">
+    <div class="card">
+      <h2 id="authTitle">Accedi o registrati</h2>
+      <label>Email</label>
+      <input type="email" id="authEmail" autocomplete="email">
+      <label>Password</label>
+      <input type="password" id="authPassword" autocomplete="current-password">
+      <button class="btn-primary" id="loginBtn">Accedi</button>
+      <button class="btn-link" id="signupBtn" style="width:100%;text-align:center;">Non hai un account? Registrati gratis</button>
+      <div id="authMsg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="formArea">
+
+    <div class="card">
+      <h2>I tuoi dati agenzia (compaiono sul report)</h2>
+      <label>Ragione sociale</label>
+      <input type="text" id="companyName">
+      <label>URL logo (carica su un hosting immagini, es. imgbb.com, e incolla il link)</label>
+      <input type="text" id="logoUrl" placeholder="https://...">
+      <div class="row">
+        <div><label>Indirizzo</label><input type="text" id="companyAddress"></div>
+        <div><label>Telefono</label><input type="text" id="companyPhone"></div>
+      </div>
+      <label>Partita IVA</label>
+      <input type="text" id="companyVat">
+      <button class="btn-primary" id="saveCompanyBtn" style="background:#f1ede2;color:var(--ink);">Salva dati agenzia</button>
+    </div>
+
+    <div id="limitBox" class="limit-box" style="display:none;"></div>
+
+    <div class="card">
+      <h2>Dati venditore</h2>
+      <div class="row">
+        <div><label>Nome e cognome</label><input type="text" id="sellerName"></div>
+        <div><label>Telefono / email</label><input type="text" id="sellerContact"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Dati immobile</h2>
+      <div class="row">
+        <div><label>Categoria</label>
+          <select id="category">
+            <option value="">Seleziona</option>
+            <option value="residenziale">Residenziale</option>
+            <option value="commerciale">Commerciale</option>
+            <option value="terreno">Terreno</option>
+          </select>
+        </div>
+        <div><label>Condizione</label>
+          <select id="propertyCondition">
+            <option value="">Seleziona</option>
+            <option value="ristrutturato">Ristrutturato</option>
+            <option value="buono">Buono stato</option>
+            <option value="da_ristrutturare">Da ristrutturare</option>
+          </select>
+        </div>
+      </div>
+      <label>Indirizzo</label>
+      <input type="text" id="address">
+      <div class="row">
+        <div><label>Comune *</label><input type="text" id="municipality"></div>
+        <div><label>Provincia</label><input type="text" id="province"></div>
+      </div>
+      <label>Regione</label>
+      <input type="text" id="region">
+      <div class="row">
+        <div><label>Superficie interna (mq)</label><input type="number" id="internalSize"></div>
+        <div><label>Superficie accessoria (mq)</label><input type="number" id="accessorySize"></div>
+      </div>
+      <div class="row">
+        <div><label>Garage (mq)</label><input type="number" id="garageSqm"></div>
+        <div><label>Giardino (mq)</label><input type="number" id="gardenSqm"></div>
+      </div>
+      <div class="checkbox-row"><input type="checkbox" id="hasSeaView"><label style="margin:0;">Vista mare</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="hasHistoricCenter"><label style="margin:0;">Centro storico</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="isRented"><label style="margin:0;">Attualmente locato</label></div>
+      <div id="rentBox" style="display:none;">
+        <label>Canone annuo attuale (€)</label>
+        <input type="number" id="currentAnnualRent">
+      </div>
+    </div>
+
+    <button class="btn-primary" id="calculateBtn">Calcola valutazione</button>
+    <div id="progressMsg"></div>
+
+  </div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ==== CREDENZIALI QUANTUM ====
+var SUPABASE_URL = "https://znjycwnwkjrzgwvxhojp.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_gTcYFucCifjDUfuvhBhgwg_FSldicss";
+var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ==== CREDENZIALI IMMONOVA (per chiamare i 3 motori via HTTP diretto, MAI deploy su Immonova) ====
+// ATTENZIONE: valore segnaposto, va sostituito con la vera IMMONOVA_ANON_KEY prima dell'uso reale.
+var IMMONOVA_URL = "https://bpzzmitmbavcmcasswbu.supabase.co";
+var IMMONOVA_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwenptaXRtYmF2Y21jYXNzd2J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDk1ODQsImV4cCI6MjA5NzM4NTU4NH0.SkPicFpfYe69rI0JmASqm-jif-Ov3gQ0Mu20UbrYawY";
+var immonovaClient = window.supabase.createClient(IMMONOVA_URL, IMMONOVA_ANON_KEY);
+
+var currentUser = null;
+var currentClientRow = null;
+var currentTier = "light";
+var FREE_MONTHLY_LIMIT = 4;
+
+function val(id){ return document.getElementById(id).value.trim(); }
+function numVal(id){ var v = document.getElementById(id).value; return v === "" ? null : Number(v); }
+function formatEuro(n){ if(n===null||n===undefined) return "—"; return new Intl.NumberFormat("it-IT").format(Math.round(n)) + " €"; }
+function showMsg(elId, text, type){
+  var el = document.getElementById(elId);
+  el.textContent = text; el.className = type; el.style.display = "block";
+  el.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+async function extractEdgeFunctionErrorMessage(error){
+  try{
+    if(error && error.context && typeof error.context.text === "function"){
+      var raw = await error.context.text();
+      try{ var parsed = JSON.parse(raw); return parsed.error || parsed.message || raw || error.message; }
+      catch(e){ return raw || error.message; }
+    }
+  }catch(e){}
+  return (error && error.message) || String(error);
+}
+
+// ==== AUTH ====
+document.getElementById("loginBtn").addEventListener("click", async function(){
+  var email = val("authEmail"), password = val("authPassword");
+  if(!email || !password){ showMsg("authMsg","Inserisci email e password.","error"); return; }
+  var result = await client.auth.signInWithPassword({ email:email, password:password });
+  if(result.error){ showMsg("authMsg", result.error.message, "error"); return; }
+  await onAuthReady();
+});
+
+document.getElementById("signupBtn").addEventListener("click", async function(){
+  var email = val("authEmail"), password = val("authPassword");
+  if(!email || !password || password.length < 6){ showMsg("authMsg","Email valida e password di almeno 6 caratteri.","error"); return; }
+  var result = await client.auth.signUp({ email:email, password:password });
+  if(result.error){ showMsg("authMsg", result.error.message, "error"); return; }
+  if(result.data.user){
+    await client.from("quantum_clients").insert({ id: result.data.user.id, email: email });
+  }
+  showMsg("authMsg","Registrazione avvenuta. Se richiesta, conferma l'email poi accedi.","success");
+});
+
+async function onAuthReady(){
+  var sessionResult = await client.auth.getSession();
+  var session = sessionResult.data.session;
+  if(!session){ return; }
+  currentUser = session.user;
+
+  var clientResult = await client.from("quantum_clients").select("*").eq("id", currentUser.id).single();
+  if(clientResult.data){
+    currentClientRow = clientResult.data;
+  } else {
+    var insertResult = await client.from("quantum_clients").insert({ id: currentUser.id, email: currentUser.email }).select("*").single();
+    currentClientRow = insertResult.data;
+  }
+
+  document.getElementById("companyName").value = currentClientRow.company_name || "";
+  document.getElementById("logoUrl").value = currentClientRow.logo_url || "";
+  document.getElementById("companyAddress").value = currentClientRow.address || "";
+  document.getElementById("companyPhone").value = currentClientRow.phone || "";
+  document.getElementById("companyVat").value = currentClientRow.vat_number || "";
+
+  currentTier = (currentClientRow.plan === "pro") ? "pro" : "light";
+  var badge = document.getElementById("tierBadge");
+  badge.style.display = "inline-block";
+  badge.textContent = currentTier === "pro" ? "Pro" : "Light";
+  badge.className = "tier-badge " + currentTier;
+
+  document.getElementById("authBox").style.display = "none";
+  document.getElementById("formArea").style.display = "block";
+
+  if(currentTier === "light"){
+    var countResult = await client.rpc("quantum_count_valuations_this_month", { p_client_id: currentUser.id });
+    var used = countResult.data || 0;
+    if(used >= FREE_MONTHLY_LIMIT){
+      var box = document.getElementById("limitBox");
+      box.style.display = "block";
+      box.innerHTML = "Hai raggiunto il limite di " + FREE_MONTHLY_LIMIT + " valutazioni gratuite questo mese. <a href='quantum-checkout.html?tier=pro'>Passa a Pro</a> per valutazioni illimitate.";
+      document.getElementById("calculateBtn").disabled = true;
+    } else {
+      var box2 = document.getElementById("limitBox");
+      box2.style.display = "block";
+      box2.style.background = "#f1ede2"; box2.style.color = "#555";
+      box2.textContent = "Piano Light: " + (FREE_MONTHLY_LIMIT - used) + " valutazioni gratuite rimanenti questo mese.";
+    }
+  }
+}
+
+document.getElementById("isRented").addEventListener("change", function(){
+  document.getElementById("rentBox").style.display = this.checked ? "block" : "none";
+});
+
+document.getElementById("saveCompanyBtn").addEventListener("click", async function(){
+  var payload = {
+    company_name: val("companyName"),
+    logo_url: val("logoUrl"),
+    address: val("companyAddress"),
+    phone: val("companyPhone"),
+    vat_number: val("companyVat")
+  };
+  var result = await client.from("quantum_clients").update(payload).eq("id", currentUser.id);
+  if(result.error){ alert("Errore salvataggio: " + result.error.message); return; }
+  currentClientRow = Object.assign(currentClientRow, payload);
+});
+
+// ==== GEOCODIFICA (Nominatim, nessuna chiave richiesta) ====
+async function geocodeAddress(address, municipality, province, region){
+  var queryParts = [address, municipality, province, region, "Italia"].filter(Boolean);
+  if(!queryParts.length) return { lat:null, lng:null };
+  var q = queryParts.join(", ");
+  try{
+    var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q=" + encodeURIComponent(q);
+    var res = await fetch(url, { headers: { "Accept":"application/json" } });
+    if(!res.ok) return { lat:null, lng:null };
+    var data = await res.json();
+    if(!Array.isArray(data) || !data.length) return { lat:null, lng:null };
+    return { lat:Number(data[0].lat), lng:Number(data[0].lon) };
+  }catch(e){ return { lat:null, lng:null }; }
+}
+
+// ==== DATO DI MERCATO PUBBLICO (motore dedicato Immonova, leggero) ====
+async function findMarketPricePerSqm(municipality, province, region){
+  try{
+    var result = await immonovaClient.functions.invoke("immonova-valuation-engine", {
+      body: { municipality: municipality || null, province: province || null, region: region || null }
+    });
+    if(result.error) return { value:null, source:null };
+    return result.data || { value:null, source:null };
+  }catch(e){ return { value:null, source:null }; }
+}
+
+// ==== SOLO PRO: comparabili AI da portali ====
+async function findAiComparablesAndNarrative(category, municipality, province, region, internalSize, address, propertyCondition, isRented, currentAnnualRent, hasSeaView, hasHistoricCenter, lat, lng){
+  try{
+    var result = await immonovaClient.functions.invoke("immonova-ai-valuation-engine", {
+      body:{
+        category: category||null, municipality: municipality||null, province: province||null, region: region||null,
+        internal_size: internalSize||null, address: address||null, property_condition: propertyCondition||null,
+        is_rented: !!isRented, current_annual_rent: currentAnnualRent||null,
+        has_sea_view: !!hasSeaView, has_historic_center: !!hasHistoricCenter,
+        latitude: lat!=null?lat:null, longitude: lng!=null?lng:null
+      }
+    });
+    if(result.error) return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null };
+    return result.data;
+  }catch(e){ return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null }; }
+}
+
+// ==== SOLO PRO: dati territorio (popolazione/reddito/prossimità) ====
+async function findTerritoryData(municipality, province, region){
+  try{
+    var result = await immonovaClient.functions.invoke("immonova-demographics-engine", {
+      body: { municipality: municipality||null, province: province||null, region: region||null }
+    });
+    if(result.error) return null;
+    return result.data;
+  }catch(e){ return null; }
+}
+
+function weightedExtrasValue(pricePerSqm, garageSqm, gardenSqm){
+  if(!pricePerSqm) return 0;
+  return (garageSqm ? garageSqm*pricePerSqm*0.35 : 0) + (gardenSqm ? gardenSqm*pricePerSqm*0.15 : 0);
+}
+
+function equivalentSurface(internalSize, accessorySize, garageSqm, gardenSqm){
+  var total = (internalSize||0)*1.0 + (accessorySize||0)*0.35 + (garageSqm||0)*0.35 + (gardenSqm||0)*0.15;
+  return total || null;
+}
+
+function trimOutliers(values){
+  if(values.length < 3) return values;
+  var sorted = values.slice().sort(function(a,b){return a-b;});
+  var median = sorted[Math.floor(sorted.length/2)];
+  return values.filter(function(v){ return v <= median*2.5 && v >= median*0.4; });
+}
+
+// ==== CALCOLO ====
+document.getElementById("calculateBtn").addEventListener("click", async function(){
+  var municipality = val("municipality");
+  if(!municipality){ showMsg("progressMsg","Il comune è obbligatorio.","error"); return; }
+
+  var btn = this; btn.disabled = true;
+  showMsg("progressMsg","Calcolo in corso...","info");
+
+  var category = val("category"), province = val("province"), region = val("region"), address = val("address");
+  var internalSize = numVal("internalSize"), accessorySize = numVal("accessorySize");
+  var garageSqm = numVal("garageSqm"), gardenSqm = numVal("gardenSqm");
+  var hasSeaView = document.getElementById("hasSeaView").checked;
+  var hasHistoricCenter = document.getElementById("hasHistoricCenter").checked;
+  var isRented = document.getElementById("isRented").checked;
+  var currentAnnualRent = numVal("currentAnnualRent");
+  var propertyCondition = val("propertyCondition");
+
+  try{
+    var geo = await geocodeAddress(address, municipality, province, region);
+    var marketResult = await findMarketPricePerSqm(municipality, province, region);
+
+    var aiResult = { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null };
+    var territoryData = null;
+
+    if(currentTier === "pro"){
+      showMsg("progressMsg","Ricerca comparabili sui portali immobiliari...","info");
+      aiResult = await findAiComparablesAndNarrative(category, municipality, province, region, internalSize, address, propertyCondition, isRented, currentAnnualRent, hasSeaView, hasHistoricCenter, geo.lat, geo.lng);
+      territoryData = await findTerritoryData(municipality, province, region);
+    }
+
+    var pricesPerSqm = [];
+    if(marketResult.value) pricesPerSqm.push(marketResult.value);
+    (aiResult.comparables||[]).forEach(function(c){ if(c.price_per_sqm) pricesPerSqm.push(c.price_per_sqm); });
+
+    var cleanPrices = trimOutliers(pricesPerSqm);
+    if(!cleanPrices.length){
+      showMsg("progressMsg","Nessun dato di mercato disponibile per questa zona. Impossibile calcolare una stima affidabile.","error");
+      btn.disabled = false;
+      return;
+    }
+
+    var avgPricePerSqm = cleanPrices.reduce(function(a,b){return a+b;},0) / cleanPrices.length;
+    var minPricePerSqm = Math.min.apply(null, cleanPrices);
+    var maxPricePerSqm = Math.max.apply(null, cleanPrices);
+    var equivSurface = equivalentSurface(internalSize, accessorySize, garageSqm, gardenSqm);
+
+    var comparativeValue = equivSurface ? (equivSurface * avgPricePerSqm) : null;
+    var comparativeMin = equivSurface ? (equivSurface * minPricePerSqm) : null;
+    var comparativeMax = equivSurface ? (equivSurface * maxPricePerSqm) : null;
+    var extrasValue = weightedExtrasValue(avgPricePerSqm, garageSqm, gardenSqm);
+
+    var incomeValue = null;
+    if(currentTier === "pro" && isRented && currentAnnualRent){
+      var capRate = 0.06;
+      incomeValue = currentAnnualRent / capRate;
+    }
+
+    var finalValue = comparativeValue;
+    if(incomeValue){
+      finalValue = (comparativeValue * 0.6) + (incomeValue * 0.4);
+    }
+    if(finalValue) finalValue += extrasValue;
+
+    var calculationResult = {
+      tier: currentTier,
+      geocode: geo,
+      market_price_per_sqm: marketResult.value,
+      market_source: marketResult.source || null,
+      ai_comparables: aiResult.comparables || [],
+      position_analysis: aiResult.position_analysis || null,
+      positive_elements: aiResult.positive_elements || [],
+      risk_elements: aiResult.risk_elements || [],
+      conclusion: aiResult.conclusion || null,
+      territory_data: territoryData,
+      equivalent_surface: equivSurface,
+      avg_price_per_sqm: avgPricePerSqm,
+      comparative_value: comparativeValue,
+      comparative_min: comparativeMin,
+      comparative_max: comparativeMax,
+      income_value: incomeValue,
+      final_value: finalValue,
+      calculated_at: new Date().toISOString()
+    };
+
+    var propertyData = {
+      category: category, address: address, municipality: municipality, province: province, region: region,
+      internal_size: internalSize, accessory_size: accessorySize, garage_sqm: garageSqm, garden_sqm: gardenSqm,
+      has_sea_view: hasSeaView, has_historic_center: hasHistoricCenter, is_rented: isRented,
+      current_annual_rent: currentAnnualRent, property_condition: propertyCondition
+    };
+
+    var sellerData = { name: val("sellerName"), contact: val("sellerContact") };
+
+    showMsg("progressMsg","Salvataggio...","info");
+    var insertResult = await client.from("quantum_valuations").insert({
+      client_id: currentUser.id, tier: currentTier, property_data: propertyData, seller_data: sellerData,
+      calculation_result: calculationResult, status: "completed"
+    }).select("id").single();
+
+    if(insertResult.error){
+      showMsg("progressMsg", "Errore salvataggio: " + (await extractEdgeFunctionErrorMessage(insertResult.error)), "error");
+      btn.disabled = false;
+      return;
+    }
+
+    window.location.href = "quantum-view.html?id=" + insertResult.data.id;
+
+  }catch(e){
+    showMsg("progressMsg", "Errore imprevisto: " + e.message, "error");
+    btn.disabled = false;
+  }
+});
+
+client.auth.onAuthStateChange(function(event, session){
+  if(session) onAuthReady();
+});
+onAuthReady();
+</script>
+</body>
+</html>

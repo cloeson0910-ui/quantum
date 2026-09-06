@@ -108,8 +108,24 @@
   </div>
 
   <div class="section">
+    <h2>Dato di mercato</h2>
+    <table id="marketTable"></table>
+  </div>
+
+  <div class="section" id="comparablesSection" style="display:none;">
+    <h2>Comparabili utilizzati</h2>
+    <table id="comparablesTable"></table>
+    <div id="portalsUsedLine" style="font-size:12px;color:var(--gray);margin-top:10px;"></div>
+  </div>
+
+  <div class="section">
     <h2>Fonti utilizzate</h2>
     <ul class="sources-list" id="sourcesList"></ul>
+  </div>
+
+  <div class="section" style="text-align:center;background:#f8f5ec;border:1px solid var(--border);border-radius:12px;padding:20px;">
+    <div style="font-size:13px;color:var(--gray);margin-bottom:10px;">Hai anche bisogno di un dossier d'investimento completo per questo immobile?</div>
+    <a href="https://folium.dominus-suite.it/folium-plans.html" target="_blank" rel="noopener" style="background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">Genera il tuo dossier gratis con Folium</a>
   </div>
 
   <div class="ad-slot no-print" id="adSlot" style="display:none;"></div>
@@ -221,17 +237,54 @@ async function loadReport(){
   }
   addRow(calcTable, "Valore finale", formatEuro(calc.final_value));
 
+  // ---- Dato di mercato base ----
+  var marketTable = document.getElementById("marketTable");
+  addRow(marketTable, "Prezzo/mq (fonte pubblica)", calc.market_price_per_sqm ? formatEuro(calc.market_price_per_sqm) + "/mq" : "Non disponibile");
+  addRow(marketTable, "Fonte", calc.market_source || "—");
+
+  // ---- Comparabili dettagliati ----
+  if(calc.ai_comparables && calc.ai_comparables.length){
+    document.getElementById("comparablesSection").style.display = "block";
+    var compTable = document.getElementById("comparablesTable");
+    var compHead = document.createElement("tr");
+    compHead.innerHTML = "<td><b>Indirizzo/rif.</b></td><td><b>Prezzo/mq</b></td><td><b>Fonte</b></td>";
+    compHead.style.borderBottom = "2px solid var(--border)";
+    compTable.appendChild(compHead);
+    calc.ai_comparables.forEach(function(c){
+      var tr = document.createElement("tr");
+      var addrCell = c.address || c.description || "Comparabile";
+      var priceCell = c.price_per_sqm ? formatEuro(c.price_per_sqm) + "/mq" : "—";
+      var sourceCell = c.url ? ("<a href='" + c.url + "' target='_blank' rel='noopener' style='color:var(--gold-dark);'>Vedi annuncio</a>") : (c.source || "Portale immobiliare");
+      tr.innerHTML = "<td>" + addrCell + "</td><td>" + priceCell + "</td><td>" + sourceCell + "</td>";
+      compTable.appendChild(tr);
+    });
+
+    // ---- Estraggo i domini reali dei portali consultati, senza duplicati ----
+    var domains = [];
+    calc.ai_comparables.forEach(function(c){
+      if(c.url){
+        try{
+          var hostname = new URL(c.url).hostname.replace("www.", "");
+          if(domains.indexOf(hostname) === -1) domains.push(hostname);
+        }catch(e){ /* URL malformato, ignoro senza bloccare il resto */ }
+      }
+    });
+    if(domains.length){
+      document.getElementById("portalsUsedLine").innerHTML = "<b>Portali consultati:</b> " + domains.join(", ");
+    }
+  }
+
   // ---- Tabella di sensitività ----
   if(calc.avg_price_per_sqm && calc.equivalent_surface){
-    var min = calc.comparative_min || calc.avg_price_per_sqm * 0.85;
-    var max = calc.comparative_max || calc.avg_price_per_sqm * 1.15;
+    var minPricePerSqm = calc.comparative_min ? (calc.comparative_min / calc.equivalent_surface) : (calc.avg_price_per_sqm * 0.85);
+    var maxPricePerSqm = calc.comparative_max ? (calc.comparative_max / calc.equivalent_surface) : (calc.avg_price_per_sqm * 1.15);
     var steps = 5;
-    var stepSize = (max - min) / (steps - 1);
+    var stepSize = (maxPricePerSqm - minPricePerSqm) / (steps - 1);
     var headRow = "<tr><th>€/mq</th>";
     var valRow = "<tr><th>Valore stimato</th>";
     for(var i=0;i<steps;i++){
-      var p = min + stepSize*i;
-      headRow += "<td>" + formatEuro(p) + "</td>";
+      var p = minPricePerSqm + stepSize*i;
+      headRow += "<td>" + Math.round(p) + " €/mq</td>";
       valRow += "<td>" + formatEuro(p * calc.equivalent_surface) + "</td>";
     }
     headRow += "</tr>"; valRow += "</tr>";

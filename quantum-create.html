@@ -213,15 +213,46 @@ async function onAuthReady(){
   document.getElementById("companyVat").value = currentClientRow.vat_number || "";
 
   currentTier = (currentClientRow.plan === "pro") ? "pro" : "light";
-  var badge = document.getElementById("tierBadge");
-  badge.style.display = "inline-block";
-  badge.textContent = currentTier === "pro" ? "Pro" : "Light";
-  badge.className = "tier-badge " + currentTier;
+
+  // ---- Eccezione account interno: puo' TESTARE ENTRAMBI i piani, non forzato su Pro.
+  // Default Light (nessun costo automatico), selettore visibile solo per questo account,
+  // stesso principio del simulatore admin di Folium: mai motori a pagamento senza conferma esplicita. ----
+  var isTestAccount = (currentUser.email === "claudio.romano@bluewin.ch");
+  if(isTestAccount){
+    currentTier = "light";
+    var simulatorBox = document.createElement("div");
+    simulatorBox.className = "card";
+    simulatorBox.innerHTML =
+      "<h2>Simulatore piano (solo account test)</h2>" +
+      "<select id='planSimulator' style='margin-bottom:8px;'>" +
+        "<option value='light'>Simula Light</option>" +
+        "<option value='pro'>Simula Pro</option>" +
+      "</select>" +
+      "<div style='font-size:12px;color:#a12525;' id='simulatorWarning'></div>";
+    document.getElementById("formArea").insertBefore(simulatorBox, document.getElementById("formArea").firstChild);
+    document.getElementById("planSimulator").addEventListener("change", function(){
+      if(this.value === "pro"){
+        var confirmed = confirm("Simulare Pro attiva chiamate AI a pagamento reali (comparabili portali + territorio). Confermi di voler procedere e generare un costo reale di test?");
+        if(!confirmed){ this.value = "light"; currentTier = "light"; updateTierBadge(); return; }
+      }
+      currentTier = this.value;
+      updateTierBadge();
+    });
+  }
+
+  function updateTierBadge(){
+    var badge = document.getElementById("tierBadge");
+    badge.style.display = "inline-block";
+    badge.textContent = currentTier === "pro" ? "Pro" : "Light";
+    badge.className = "tier-badge " + currentTier;
+    if(isTestAccount) badge.textContent += " (test)";
+  }
+  updateTierBadge();
 
   document.getElementById("authBox").style.display = "none";
   document.getElementById("formArea").style.display = "block";
 
-  if(currentTier === "light"){
+  if(currentTier === "light" && !isTestAccount){
     var countResult = await client.rpc("quantum_count_valuations_this_month", { p_client_id: currentUser.id });
     var used = countResult.data || 0;
     if(used >= FREE_MONTHLY_LIMIT){

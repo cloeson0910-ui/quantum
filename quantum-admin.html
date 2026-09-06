@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin | Quantum</title>
+<style>
+  :root{ --gold:#a3822f; --ink:#111; --gray:#6b6459; --border:#e2d9c4; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,sans-serif;background:#faf7f0;color:var(--ink);}
+  header{padding:24px;text-align:center;border-bottom:1px solid var(--border);background:#fff;}
+  header .logo-text{font-family:Georgia,serif;font-size:24px;}
+  main{max-width:1000px;margin:0 auto;padding:24px 20px 80px;}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+  @media(max-width:700px){.stats{grid-template-columns:1fr 1fr;}}
+  .stat-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
+  .stat-card .num{font-size:26px;font-weight:700;color:var(--gold);}
+  .stat-card .label{font-size:12px;color:var(--gray);margin-top:4px;}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  th,td{text-align:left;padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);}
+  th{background:#f1ede2;font-weight:700;}
+  .badge{font-size:11px;padding:3px 10px;border-radius:20px;text-transform:uppercase;color:#fff;}
+  .badge.pro{background:var(--gold);}
+  .badge.light{background:#c7bfae;}
+  #deniedBox{max-width:500px;margin:80px auto;text-align:center;color:var(--gray);}
+  #adminArea{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-text">quantum</span> <span style="color:var(--gray);font-size:13px;">— admin</span>
+</header>
+
+<div id="deniedBox">Accesso riservato. Effettua l'accesso con l'account amministratore per continuare.</div>
+
+<main id="adminArea">
+  <div class="stats">
+    <div class="stat-card"><div class="num" id="statTotalClients">—</div><div class="label">Clienti totali</div></div>
+    <div class="stat-card"><div class="num" id="statProClients">—</div><div class="label">Clienti Pro</div></div>
+    <div class="stat-card"><div class="num" id="statTotalValuations">—</div><div class="label">Valutazioni totali</div></div>
+    <div class="stat-card"><div class="num" id="statMonthValuations">—</div><div class="label">Questo mese</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Email</th><th>Agenzia</th><th>Piano</th><th>Valutazioni</th><th>Questo mese</th><th>Ultima attività</th><th>Cliente da</th></tr>
+    </thead>
+    <tbody id="clientsBody"></tbody>
+  </table>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+var SUPABASE_URL = "https://znjycwnwkjrzgwvxhojp.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_gTcYFucCifjDUfuvhBhgwg_FSldicss";
+var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+var ADMIN_EMAIL = "claudio.romano@bluewin.ch";
+
+function formatDate(iso){
+  if(!iso) return "—";
+  return new Date(iso).toLocaleDateString("it-IT", { day:"2-digit", month:"short", year:"numeric" });
+}
+
+async function loadAdmin(){
+  var sessionResult = await client.auth.getSession();
+  var session = sessionResult.data.session;
+
+  if(!session || session.user.email !== ADMIN_EMAIL){
+    document.getElementById("deniedBox").innerHTML =
+      "Accesso riservato.<br><br>" +
+      "<input type='email' id='adminEmail' placeholder='email' style='padding:8px;margin:4px;'>" +
+      "<input type='password' id='adminPassword' placeholder='password' style='padding:8px;margin:4px;'>" +
+      "<br><button id='adminLoginBtn' style='padding:8px 16px;background:#a3822f;color:#fff;border:none;border-radius:6px;cursor:pointer;'>Accedi</button>";
+    document.getElementById("adminLoginBtn").addEventListener("click", async function(){
+      var email = document.getElementById("adminEmail").value.trim();
+      var password = document.getElementById("adminPassword").value.trim();
+      var result = await client.auth.signInWithPassword({ email:email, password:password });
+      if(result.error || email !== ADMIN_EMAIL){
+        alert("Accesso negato.");
+        return;
+      }
+      loadAdmin();
+    });
+    return;
+  }
+
+  document.getElementById("deniedBox").style.display = "none";
+  document.getElementById("adminArea").style.display = "block";
+
+  var overviewResult = await client.from("quantum_admin_clients_overview").select("*").order("created_at", { ascending:false });
+  if(overviewResult.error){
+    alert("Errore caricamento dati: " + overviewResult.error.message);
+    return;
+  }
+
+  var rows = overviewResult.data || [];
+  document.getElementById("statTotalClients").textContent = rows.length;
+  document.getElementById("statProClients").textContent = rows.filter(function(r){return r.plan === "pro";}).length;
+  document.getElementById("statTotalValuations").textContent = rows.reduce(function(s,r){return s + (r.total_valuations||0);}, 0);
+  document.getElementById("statMonthValuations").textContent = rows.reduce(function(s,r){return s + (r.valuations_this_month||0);}, 0);
+
+  var tbody = document.getElementById("clientsBody");
+  rows.forEach(function(r){
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + (r.email||"—") + "</td>" +
+      "<td>" + (r.company_name||"—") + "</td>" +
+      "<td><span class='badge " + r.plan + "'>" + r.plan + "</span></td>" +
+      "<td>" + (r.total_valuations||0) + "</td>" +
+      "<td>" + (r.valuations_this_month||0) + "</td>" +
+      "<td>" + formatDate(r.last_valuation_at) + "</td>" +
+      "<td>" + formatDate(r.created_at) + "</td>";
+    tbody.appendChild(tr);
+  });
+}
+
+loadAdmin();
+</script>
+</body>
+</html>

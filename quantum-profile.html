@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le mie valutazioni | Quantum</title>
+<style>
+  :root{ --gold:#a3822f; --gold-dark:#7a611f; --ink:#111; --gray:#6b6459; --border:#e2d9c4; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,sans-serif;background:#faf7f0;color:var(--ink);}
+  header{padding:24px;text-align:center;border-bottom:1px solid var(--border);background:#fff;display:flex;justify-content:center;align-items:center;gap:16px;}
+  header .logo-text{font-family:Georgia,serif;font-size:24px;}
+  main{max-width:800px;margin:0 auto;padding:24px 20px 80px;}
+  .row-item{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  .row-item .addr{font-weight:700;font-size:15px;}
+  .row-item .meta{font-size:13px;color:var(--gray);margin-top:4px;}
+  .badge{font-size:11px;padding:3px 10px;border-radius:20px;text-transform:uppercase;}
+  .badge.pro{background:var(--gold);color:#fff;}
+  .badge.light{background:#c7bfae;color:#fff;}
+  .badge.expiring{background:#fbe4e4;color:#a12525;}
+  a.open-btn{background:var(--gold);color:#fff;text-decoration:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;}
+  #emptyMsg{text-align:center;color:var(--gray);padding:60px 20px;}
+  #topBar{max-width:800px;margin:0 auto;padding:16px 20px 0;display:flex;justify-content:flex-end;}
+  #topBar a{color:var(--gold-dark);font-size:13px;text-decoration:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-text">quantum</span>
+</header>
+
+<div id="topBar"><a href="quantum-create.html">+ Nuova valutazione</a></div>
+
+<main>
+  <h2 style="font-family:Georgia,serif;font-weight:400;">Le mie valutazioni</h2>
+  <div id="list"></div>
+  <div id="emptyMsg" style="display:none;">Non hai ancora nessuna valutazione. <a href="quantum-create.html">Creane una ora</a>.</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+var SUPABASE_URL = "https://znjycwnwkjrzgwvxhojp.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_gTcYFucCifjDUfuvhBhgwg_FSldicss";
+var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function formatDate(iso){
+  if(!iso) return "—";
+  var d = new Date(iso);
+  return d.toLocaleDateString("it-IT", { day:"2-digit", month:"short", year:"numeric" });
+}
+
+function daysUntil(iso){
+  if(!iso) return null;
+  var diff = (new Date(iso)) - (new Date());
+  return Math.ceil(diff / (1000*60*60*24));
+}
+
+async function loadValuations(){
+  var sessionResult = await client.auth.getSession();
+  var session = sessionResult.data.session;
+  if(!session){
+    window.location.href = "quantum-create.html";
+    return;
+  }
+
+  var result = await client.from("quantum_valuations")
+    .select("id, tier, property_data, calculation_result, created_at, expires_at, status")
+    .eq("client_id", session.user.id)
+    .order("created_at", { ascending: false });
+
+  var list = document.getElementById("list");
+  if(result.error || !result.data || !result.data.length){
+    document.getElementById("emptyMsg").style.display = "block";
+    return;
+  }
+
+  result.data.forEach(function(v){
+    var addr = (v.property_data && v.property_data.municipality) ? v.property_data.municipality : "Immobile";
+    if(v.property_data && v.property_data.address) addr = v.property_data.address + ", " + addr;
+
+    var value = (v.calculation_result && v.calculation_result.final_value) ? v.calculation_result.final_value : null;
+    var valueText = value ? new Intl.NumberFormat("it-IT").format(Math.round(value)) + " €" : "In elaborazione";
+
+    var remainingDays = daysUntil(v.expires_at);
+    var expiryBadge = "";
+    if(remainingDays !== null && remainingDays <= 30 && remainingDays >= 0){
+      expiryBadge = "<span class='badge expiring'>scade tra " + remainingDays + " giorni</span>";
+    }
+
+    var div = document.createElement("div");
+    div.className = "row-item";
+    div.innerHTML =
+      "<div>" +
+        "<div class='addr'>" + addr + " — " + valueText + "</div>" +
+        "<div class='meta'>Creata il " + formatDate(v.created_at) +
+          " · <span class='badge " + v.tier + "'>" + v.tier + "</span> " + expiryBadge +
+        "</div>" +
+      "</div>" +
+      "<a class='open-btn' href='quantum-view.html?id=" + v.id + "'>Apri</a>";
+    list.appendChild(div);
+  });
+}
+
+loadValuations();
+</script>
+</body>
+</html>

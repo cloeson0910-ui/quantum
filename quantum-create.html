@@ -39,6 +39,9 @@
   #progressMsg.info{background:#f1ede2;color:#555;display:block;}
   #progressMsg.error{background:#fbe4e4;color:#a12525;display:block;}
   #progressMsg.success{background:#e6f4e8;color:#1e6b31;display:block;}
+  #progressBarTrack{height:4px;background:#f1ede2;border-radius:4px;overflow:hidden;margin-top:8px;display:none;}
+  #progressBarTrack.show{display:block;}
+  #progressBarFill{height:100%;width:0%;background:var(--gold);transition:width 0.4s ease;}
   .tier-badge{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;padding:3px 10px;border-radius:20px;background:var(--gold);color:#fff;margin-left:8px;}
   .tier-badge.light{background:#c7bfae;}
   .limit-box{background:#fbe4e4;color:#a12525;padding:14px;border-radius:8px;font-size:14px;margin-bottom:16px;}
@@ -134,8 +137,11 @@
         <div><label>Regione</label><input type="text" id="region"></div>
       </div>
       <label>Prezzo/mq di riferimento (opzionale — se lo conosci, ha priorità sui dati automatici)</label>
-      <input type="number" id="manualPricePerSqm" placeholder="es. 1800">
-      <div style="font-size:12px;color:var(--gray);margin-top:2px;">Utile se il sistema non trova dati automatici per questa zona, o se conosci meglio tu il mercato locale.</div>
+      <div style="display:flex;gap:8px;">
+        <input type="number" id="manualPricePerSqm" placeholder="es. 1800" style="flex:1;">
+        <button type="button" id="omiLinkBtn" style="white-space:nowrap;background:#f1ede2;color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:0 14px;font-size:12px;cursor:pointer;">Cerca su OMI ↗</button>
+      </div>
+      <div style="font-size:12px;color:var(--gray);margin-top:2px;">Il pulsante apre la ricerca ufficiale OMI (Agenzia Entrate) — richiede di selezionare Provincia e Comune manualmente, poi copia qui il valore trovato.</div>
 
       <label style="margin-top:20px;">Dati catastali (opzionali)</label>
       <div class="row">
@@ -175,6 +181,7 @@
     </div>
 
     <button class="btn-primary" id="calculateBtn">Calcola valutazione</button>
+    <div id="progressBarTrack"><div id="progressBarFill"></div></div>
     <div id="progressMsg"></div>
 
   </div>
@@ -207,6 +214,13 @@ function showMsg(elId, text, type){
   var el = document.getElementById(elId);
   el.textContent = text; el.className = type; el.style.display = "block";
   el.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+function setProgress(percent){
+  var track = document.getElementById("progressBarTrack");
+  var fill = document.getElementById("progressBarFill");
+  if(percent <= 0){ track.classList.remove("show"); fill.style.width = "0%"; return; }
+  track.classList.add("show");
+  fill.style.width = percent + "%";
 }
 async function extractEdgeFunctionErrorMessage(error){
   try{
@@ -322,6 +336,10 @@ async function onAuthReady(){
     }
   }
 }
+
+document.getElementById("omiLinkBtn").addEventListener("click", function(){
+  window.open("https://www1.agenziaentrate.gov.it/servizi/Consultazione/ricerca.htm", "_blank");
+});
 
 document.getElementById("isRented").addEventListener("change", function(){
   document.getElementById("rentBox").style.display = this.checked ? "block" : "none";
@@ -447,6 +465,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
 
   var btn = this; btn.disabled = true;
   showMsg("progressMsg","Calcolo in corso...","info");
+  setProgress(20);
 
   var category = val("category"), province = val("province"), region = val("region"), address = val("address");
   var manualPricePerSqm = numVal("manualPricePerSqm");
@@ -469,6 +488,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
     // 4 valutazioni/mese già esistente (costo variabile coperto dalla pubblicità di terzi che
     // compare comunque sul report Light). Territorio/prossimità restano differenziatore Pro. ----
     showMsg("progressMsg","Ricerca comparabili sui portali immobiliari...","info");
+    setProgress(55);
     aiResult = await findAiComparablesAndNarrative(category, municipality, province, region, internalSize, address, propertyCondition, isRented, currentAnnualRent, hasSeaView, hasHistoricCenter, geo.lat, geo.lng);
 
     if(currentTier === "pro"){
@@ -488,6 +508,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
     }
 
     if(!priceSources.length){
+      setProgress(0);
       showMsg("progressMsg","Nessun dato di mercato disponibile per questa zona (né ufficiale né manuale). Inserisci un prezzo/mq di riferimento nel campo sopra per procedere.","error");
       btn.disabled = false;
       return;
@@ -556,20 +577,24 @@ document.getElementById("calculateBtn").addEventListener("click", async function
     var sellerData = { name: val("sellerName"), contact: val("sellerContact") };
 
     showMsg("progressMsg","Salvataggio...","info");
+    setProgress(85);
     var insertResult = await client.from("quantum_valuations").insert({
       client_id: currentUser.id, tier: currentTier, property_data: propertyData, seller_data: sellerData,
       calculation_result: calculationResult, status: "completed"
     }).select("id").single();
 
     if(insertResult.error){
+      setProgress(0);
       showMsg("progressMsg", "Errore salvataggio: " + (await extractEdgeFunctionErrorMessage(insertResult.error)), "error");
       btn.disabled = false;
       return;
     }
 
+    setProgress(100);
     window.location.href = "quantum-view.html?id=" + insertResult.data.id;
 
   }catch(e){
+    setProgress(0);
     showMsg("progressMsg", "Errore imprevisto: " + e.message, "error");
     btn.disabled = false;
   }

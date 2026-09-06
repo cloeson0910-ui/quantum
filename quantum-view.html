@@ -27,7 +27,20 @@
   .value-box{background:#f8f5ec;border:1px solid var(--gold);border-radius:12px;padding:28px;text-align:center;margin-bottom:32px;}
   .value-box .amount{font-size:40px;font-weight:700;color:var(--gold-dark);font-family:Georgia,serif;}
   .value-box .range{font-size:13px;color:var(--gray);margin-top:6px;}
-  .section{margin-bottom:28px;}
+  .section{margin-bottom:28px;page-break-inside:avoid;}
+  .no-print-doc{ }
+  @media print{ .no-print-doc{display:none;} }
+  #printAdFooter{
+    display:none;
+  }
+  @media print{
+    #printAdFooter{
+      display:block; position:fixed; bottom:0; left:0; right:0;
+      text-align:center; font-size:10px; color:#888; padding:6px 0;
+      border-top:1px solid #ddd; background:#fff;
+    }
+    .sheet{ padding-bottom:50px; }
+  }
   .section h2{font-size:15px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gold-dark);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
   table td{padding:6px 0;border-bottom:1px solid #f1ede2;}
@@ -44,6 +57,22 @@
   .ad-slot{margin-top:40px;padding:20px;border-top:1px solid var(--border);text-align:center;}
   .ad-slot img{max-height:50px;margin-bottom:8px;}
   .ad-slot a{font-size:12px;color:var(--gray);text-decoration:none;}
+  .ad-full-page{
+    display:none;
+  }
+  @media print{
+    .ad-full-page{
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      page-break-before:always; page-break-after:always; height:100vh; text-align:center;
+      gap:24px;
+    }
+    .ad-full-page .ad-card{
+      border:1px solid var(--border); border-radius:12px; padding:32px 48px; width:70%;
+    }
+    .ad-full-page .ad-card img{ max-height:80px; max-width:220px; margin-bottom:16px; }
+    .ad-full-page .ad-card .ad-name{ font-family:Georgia,serif; font-size:20px; }
+    .ad-full-page .ad-label{ font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--gray); }
+  }
   .footer-note{margin-top:32px;font-size:11px;color:var(--gray);text-align:center;}
   #loadingMsg{text-align:center;padding:80px;color:var(--gray);}
   #contentArea{display:none;}
@@ -76,6 +105,8 @@
     <div class="amount" id="finalValueText">—</div>
     <div class="range" id="valueRangeText"></div>
   </div>
+
+  <div class="ad-full-page" id="adFullPageTop"></div>
 
   <div class="section" id="mapSection" style="display:none;">
     <h2>Posizione</h2>
@@ -134,12 +165,16 @@
     <ul class="sources-list" id="sourcesList"></ul>
   </div>
 
-  <div class="section" style="text-align:center;background:#f8f5ec;border:1px solid var(--border);border-radius:12px;padding:20px;">
+  <div class="section no-print-doc" style="text-align:center;background:#f8f5ec;border:1px solid var(--border);border-radius:12px;padding:20px;">
     <div style="font-size:13px;color:var(--gray);margin-bottom:10px;">Hai anche bisogno di un dossier d'investimento completo per questo immobile?</div>
     <a href="https://folium.dominus-suite.it/folium-plans.html" target="_blank" rel="noopener" style="background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">Genera il tuo dossier gratis con Folium</a>
   </div>
 
-  <div class="ad-slot no-print" id="adSlot" style="display:none;"></div>
+  <div class="ad-slot no-print no-print-doc" id="adSlot" style="display:none;"></div>
+
+  <div class="ad-full-page" id="adFullPageBottom"></div>
+
+  <div id="printAdFooter"></div>
 
   <div class="footer-note">
     Generato con Quantum — parte di Dominus Suite<br>
@@ -399,14 +434,33 @@ async function loadReport(){
   // ---- Pubblicità (solo Light, letta da Folium via HTTP) ----
   if(!isPro){
     try{
-      var adsResult = await foliumClient.from("folium_advertisers").select("*").limit(1);
+      var adsResult = await foliumClient.from("folium_advertisers").select("*").limit(6);
       if(adsResult.data && adsResult.data.length){
-        var ad = adsResult.data[0];
+        var allAds = adsResult.data;
+        var names = allAds.map(function(a){ return a.company_name || a.name || ""; }).filter(Boolean);
+        document.getElementById("printAdFooter").textContent = "Sponsor: " + names.join(" · ");
+
+        function buildAdCard(a){
+          return "<div class='ad-card'>" +
+            (a.logo_url ? "<img src='" + a.logo_url + "'>" : "") +
+            "<div class='ad-name'>" + (a.company_name || a.name || "") + "</div>" +
+            "</div>";
+        }
+
+        var firstTwo = allAds.slice(0, 2);
+        var lastTwo = allAds.slice(2, 4).length ? allAds.slice(2, 4) : allAds.slice(0, 2);
+
+        document.getElementById("adFullPageTop").innerHTML =
+          "<div class='ad-label'>Un messaggio dai nostri sponsor</div>" + firstTwo.map(buildAdCard).join("");
+        document.getElementById("adFullPageBottom").innerHTML =
+          "<div class='ad-label'>Un messaggio dai nostri sponsor</div>" + lastTwo.map(buildAdCard).join("");
+
+        var ad = allAds[0];
         var adSlot = document.getElementById("adSlot");
         adSlot.style.display = "block";
         adSlot.innerHTML =
           (ad.logo_url ? "<img src='" + ad.logo_url + "'>" : "") +
-          "<div><a href='" + (ad.link_url || "#") + "' target='_blank' rel='noopener'>" + (ad.company_name || "") + "</a></div>";
+          "<div><a href='" + (ad.link_url || "#") + "' target='_blank' rel='noopener'>" + (ad.company_name || ad.name || "") + "</a></div>";
       }
     }catch(e){ /* pubblicità non essenziale, nessun blocco in caso di errore */ }
   }

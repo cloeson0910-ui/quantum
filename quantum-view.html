@@ -48,6 +48,17 @@
   .ad-slot .ad-upgrade-bar a{ color:#f0e3c8; font-weight:700; text-decoration:underline; }
   .ad-slot .ad-photo{ width:100%; max-height:280px; object-fit:cover; display:block; }
   .ad-slot .ad-caption{ text-align:center; padding:10px; font-size:13px; color:var(--gray); }
+  #printAdPage{ display:none; }
+  @media print{
+    #printAdPage{
+      display:block; page-break-before:always;
+      padding:40px 20px; text-align:center;
+    }
+    #printAdPage .ad-page-label{ font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--gray); margin-bottom:20px; }
+    #printAdPage .ad-page-card{ margin-bottom:24px; }
+    #printAdPage .ad-page-card img{ max-width:100%; max-height:260px; object-fit:cover; border-radius:8px; }
+    #printAdPage .ad-page-card .ad-page-name{ font-size:14px; margin-top:8px; color:var(--ink); }
+  }
   #printSponsorFooter{ display:none; }
   @media print{
     #printSponsorFooter{
@@ -101,6 +112,7 @@
 
   <div class="section" id="mapSection" style="display:none;">
     <h2>Posizione</h2>
+    <div id="mapAddressLine" style="font-size:14px;color:var(--ink);margin-bottom:10px;font-weight:600;"></div>
     <iframe id="propertyMap" style="width:100%;height:280px;border:1px solid var(--border);border-radius:8px;" loading="lazy"></iframe>
   </div>
 
@@ -162,6 +174,8 @@
   </div>
 
   <div class="ad-slot no-print no-print-doc" id="adSlot" style="display:none;"></div>
+
+  <div id="printAdPage" style="display:none;"></div>
 
   <div id="printSponsorFooter"></div>
 
@@ -262,6 +276,7 @@ async function loadReport(){
     var delta = 0.006;
     var bbox = (lng-delta) + "," + (lat-delta) + "," + (lng+delta) + "," + (lat+delta);
     document.getElementById("propertyMap").src = "https://www.openstreetmap.org/export/embed.html?bbox=" + bbox + "&marker=" + lat + "," + lng;
+    document.getElementById("mapAddressLine").textContent = addrLine;
     document.getElementById("mapSection").style.display = "block";
   }
 
@@ -498,6 +513,18 @@ async function loadReport(){
             renderViewAdSlide();
           }, 4000);
         }
+
+        // ---- Pagina dedicata SOLO per la stampa/PDF: foto+nome di ogni inserzionista ----
+        var printPageHtml = "<div class='ad-page-label'>Un messaggio dai nostri sponsor</div>";
+        viewAdsData.forEach(function(ad){
+          var name = (ad.folium_advertisers && ad.folium_advertisers.name) ? ad.folium_advertisers.name : "";
+          printPageHtml +=
+            "<div class='ad-page-card'>" +
+            "<img src='" + ad.image_url + "'>" +
+            "<div class='ad-page-name'>" + name + (ad.headline ? " — " + ad.headline : "") + "</div>" +
+            "</div>";
+        });
+        document.getElementById("printAdPage").innerHTML = printPageHtml;
       }
     }catch(e){
       console.error("Errore imprevisto nel caricamento inserzionisti:", e);

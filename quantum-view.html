@@ -246,10 +246,12 @@ async function loadReportInner(){
   var result = await client.from("quantum_valuations").select("*").eq("id", id).single();
   if(result.error || !result.data){
     if(!hasSession){
-      window.location.href = "quantum-create.html";
+      document.getElementById("loadingMsg").innerHTML =
+        "Questa valutazione non è pubblica (non è stata generata con \"Genera link\") oppure il link è scaduto.<br><br>" +
+        "<a href='quantum-create.html' style='color:var(--gold-dark);'>Accedi al tuo account</a> se sei l'agenzia proprietaria.";
       return;
     }
-    document.getElementById("loadingMsg").textContent = "Valutazione non trovata (potrebbe essere scaduta o privata).";
+    document.getElementById("loadingMsg").textContent = "Valutazione non trovata (potrebbe essere scaduta o privata). Dettaglio: " + (result.error ? result.error.message : "nessun dato restituito");
     return;
   }
 

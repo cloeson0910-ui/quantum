@@ -62,9 +62,13 @@
       <h2>I tuoi dati agenzia (compaiono sul report)</h2>
       <label>Ragione sociale</label>
       <input type="text" id="companyName">
-      <label>URL logo (carica su un hosting immagini, es. imgbb.com, e incolla il link)</label>
-      <input type="text" id="logoUrl" placeholder="https://...">
-      <div class="row">
+      <label>Logo agenzia</label>
+      <input type="file" id="logoFile" accept="image/*">
+      <div id="logoPreviewBox" style="margin-top:8px;display:none;">
+        <img id="logoPreviewImg" style="max-height:60px;border:1px solid var(--border);border-radius:6px;padding:4px;">
+      </div>
+      <input type="hidden" id="logoUrl">
+      <div id="logoUploadMsg" style="font-size:12px;color:var(--gray);margin-top:4px;"></div>      <div class="row">
         <div><label>Indirizzo</label><input type="text" id="companyAddress"></div>
         <div><label>Telefono</label><input type="text" id="companyPhone"></div>
       </div>
@@ -107,10 +111,15 @@
       <input type="text" id="address">
       <div class="row">
         <div><label>Comune *</label><input type="text" id="municipality"></div>
-        <div><label>Provincia</label><input type="text" id="province"></div>
+        <div><label>CAP</label><input type="text" id="postalCode"></div>
       </div>
-      <label>Regione</label>
-      <input type="text" id="region">
+      <div class="row">
+        <div><label>Provincia</label><input type="text" id="province"></div>
+        <div><label>Regione</label><input type="text" id="region"></div>
+      </div>
+      <label>Prezzo/mq di riferimento (opzionale — se lo conosci, ha priorità sui dati automatici)</label>
+      <input type="number" id="manualPricePerSqm" placeholder="es. 1800">
+      <div style="font-size:12px;color:var(--gray);margin-top:2px;">Utile se il sistema non trova dati automatici per questa zona, o se conosci meglio tu il mercato locale.</div>
       <div class="row">
         <div><label>Superficie interna (mq)</label><input type="number" id="internalSize"></div>
         <div><label>Superficie accessoria (mq)</label><input type="number" id="accessorySize"></div>
@@ -208,6 +217,10 @@ async function onAuthReady(){
 
   document.getElementById("companyName").value = currentClientRow.company_name || "";
   document.getElementById("logoUrl").value = currentClientRow.logo_url || "";
+  if(currentClientRow.logo_url){
+    document.getElementById("logoPreviewImg").src = currentClientRow.logo_url;
+    document.getElementById("logoPreviewBox").style.display = "block";
+  }
   document.getElementById("companyAddress").value = currentClientRow.address || "";
   document.getElementById("companyPhone").value = currentClientRow.phone || "";
   document.getElementById("companyVat").value = currentClientRow.vat_number || "";
@@ -271,6 +284,35 @@ async function onAuthReady(){
 
 document.getElementById("isRented").addEventListener("change", function(){
   document.getElementById("rentBox").style.display = this.checked ? "block" : "none";
+});
+
+document.getElementById("logoFile").addEventListener("change", async function(){
+  var file = this.files[0];
+  if(!file) return;
+  if(!currentUser){ alert("Accedi prima di caricare un logo."); return; }
+
+  var msgEl = document.getElementById("logoUploadMsg");
+  msgEl.textContent = "Caricamento in corso...";
+  msgEl.style.color = "#555";
+
+  var ext = file.name.split(".").pop();
+  var path = currentUser.id + "/logo." + ext;
+
+  var uploadResult = await client.storage.from("quantum-logos").upload(path, file, { upsert: true, cacheControl: "0" });
+  if(uploadResult.error){
+    msgEl.textContent = "Errore upload: " + uploadResult.error.message;
+    msgEl.style.color = "#a12525";
+    return;
+  }
+
+  var publicUrlResult = client.storage.from("quantum-logos").getPublicUrl(path);
+  var publicUrl = publicUrlResult.data.publicUrl + "?v=" + Date.now();
+
+  document.getElementById("logoUrl").value = publicUrl;
+  document.getElementById("logoPreviewImg").src = publicUrl;
+  document.getElementById("logoPreviewBox").style.display = "block";
+  msgEl.textContent = "Logo caricato.";
+  msgEl.style.color = "#1e6b31";
 });
 
 document.getElementById("saveCompanyBtn").addEventListener("click", async function(){
@@ -366,6 +408,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
   showMsg("progressMsg","Calcolo in corso...","info");
 
   var category = val("category"), province = val("province"), region = val("region"), address = val("address");
+  var manualPricePerSqm = numVal("manualPricePerSqm");
   var internalSize = numVal("internalSize"), accessorySize = numVal("accessorySize");
   var garageSqm = numVal("garageSqm"), gardenSqm = numVal("gardenSqm");
   var hasSeaView = document.getElementById("hasSeaView").checked;
@@ -381,22 +424,39 @@ document.getElementById("calculateBtn").addEventListener("click", async function
     var aiResult = { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null };
     var territoryData = null;
 
+    // ---- Comparabili AI da portali: ora inclusi anche in Light, dentro lo stesso limite di
+    // 4 valutazioni/mese già esistente (costo variabile coperto dalla pubblicità di terzi che
+    // compare comunque sul report Light). Territorio/prossimità restano differenziatore Pro. ----
+    showMsg("progressMsg","Ricerca comparabili sui portali immobiliari...","info");
+    aiResult = await findAiComparablesAndNarrative(category, municipality, province, region, internalSize, address, propertyCondition, isRented, currentAnnualRent, hasSeaView, hasHistoricCenter, geo.lat, geo.lng);
+
     if(currentTier === "pro"){
-      showMsg("progressMsg","Ricerca comparabili sui portali immobiliari...","info");
-      aiResult = await findAiComparablesAndNarrative(category, municipality, province, region, internalSize, address, propertyCondition, isRented, currentAnnualRent, hasSeaView, hasHistoricCenter, geo.lat, geo.lng);
       territoryData = await findTerritoryData(municipality, province, region);
     }
 
-    var pricesPerSqm = [];
-    if(marketResult.value) pricesPerSqm.push(marketResult.value);
-    (aiResult.comparables||[]).forEach(function(c){ if(c.price_per_sqm) pricesPerSqm.push(c.price_per_sqm); });
+    var priceSources = [];
+    if(marketResult.value) priceSources.push({ value: marketResult.value, source: marketResult.source || "Dato di mercato pubblico" });
+    (aiResult.comparables||[]).forEach(function(c){
+      if(c.price_per_sqm) priceSources.push({ value: c.price_per_sqm, source: "Comparabile portale immobiliare" + (c.url ? " (" + c.url + ")" : "") });
+    });
+    if(manualPricePerSqm){
+      // Peso doppio: un dato diretto dell'agenzia sul proprio territorio conta quanto due fonti
+      // automatiche, ma resta SEMPRE etichettato come proprio, mai spacciato per dato ufficiale.
+      priceSources.push({ value: manualPricePerSqm, source: "Agenzia (dato inserito manualmente)" });
+      priceSources.push({ value: manualPricePerSqm, source: "Agenzia (dato inserito manualmente)" });
+    }
 
-    var cleanPrices = trimOutliers(pricesPerSqm);
-    if(!cleanPrices.length){
-      showMsg("progressMsg","Nessun dato di mercato disponibile per questa zona. Impossibile calcolare una stima affidabile.","error");
+    if(!priceSources.length){
+      showMsg("progressMsg","Nessun dato di mercato disponibile per questa zona (né ufficiale né manuale). Inserisci un prezzo/mq di riferimento nel campo sopra per procedere.","error");
       btn.disabled = false;
       return;
     }
+
+    var pricesPerSqm = priceSources.map(function(p){ return p.value; });
+    var cleanPrices = trimOutliers(pricesPerSqm);
+    var usedSources = priceSources.filter(function(p){ return cleanPrices.indexOf(p.value) !== -1; })
+      .map(function(p){ return p.source; })
+      .filter(function(s, i, arr){ return arr.indexOf(s) === i; }); // fonti uniche, senza duplicati
 
     var avgPricePerSqm = cleanPrices.reduce(function(a,b){return a+b;},0) / cleanPrices.length;
     var minPricePerSqm = Math.min.apply(null, cleanPrices);
@@ -433,6 +493,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
       territory_data: territoryData,
       equivalent_surface: equivSurface,
       avg_price_per_sqm: avgPricePerSqm,
+      price_sources_used: usedSources,
       comparative_value: comparativeValue,
       comparative_min: comparativeMin,
       comparative_max: comparativeMax,
@@ -442,7 +503,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
     };
 
     var propertyData = {
-      category: category, address: address, municipality: municipality, province: province, region: region,
+      category: category, address: address, municipality: municipality, postal_code: val("postalCode"), province: province, region: region,
       internal_size: internalSize, accessory_size: accessorySize, garage_sqm: garageSqm, garden_sqm: gardenSqm,
       has_sea_view: hasSeaView, has_historic_center: hasHistoricCenter, is_rented: isRented,
       current_annual_rent: currentAnnualRent, property_condition: propertyCondition

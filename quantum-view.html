@@ -48,6 +48,15 @@
   .ad-slot .ad-upgrade-bar a{ color:#f0e3c8; font-weight:700; text-decoration:underline; }
   .ad-slot .ad-photo{ width:100%; max-height:280px; object-fit:cover; display:block; }
   .ad-slot .ad-caption{ text-align:center; padding:10px; font-size:13px; color:var(--gray); }
+  #printSponsorFooter{ display:none; }
+  @media print{
+    #printSponsorFooter{
+      display:block; position:fixed; bottom:0; left:0; right:0;
+      text-align:center; font-size:9px; color:#999; padding:4px 20px;
+      border-top:1px solid #ddd; background:#fff;
+    }
+    .sheet{ padding-bottom:36px; }
+  }
   .footer-note{margin-top:32px;font-size:11px;color:var(--gray);text-align:center;}
   #loadingMsg{text-align:center;padding:80px;color:var(--gray);}
   #contentArea{display:none;}
@@ -153,6 +162,8 @@
   </div>
 
   <div class="ad-slot no-print no-print-doc" id="adSlot" style="display:none;"></div>
+
+  <div id="printSponsorFooter"></div>
 
 
 
@@ -432,21 +443,38 @@ async function loadReport(){
       var adsResult = await foliumClient.from("folium_ad_pages")
         .select("image_url, headline, cta_url, folium_advertisers(name)")
         .eq("tenant_id", FOLIUM_TENANT_ID).eq("active", true)
-        .lte("subscription_start", todayStr).gte("subscription_end", todayStr)
-        .limit(8);
+        .lte("subscription_start", todayStr).gte("subscription_end", todayStr);
       if(adsResult.error){
         console.error("Errore query folium_ad_pages:", adsResult.error);
       } else if(adsResult.data && adsResult.data.length){
-        var ad = adsResult.data[0];
-        var ctaHref = ad.cta_url ? (/^https?:\/\//i.test(ad.cta_url) ? ad.cta_url : "https://" + ad.cta_url) : null;
-        var caption = (ad.folium_advertisers && ad.folium_advertisers.name ? ad.folium_advertisers.name : "") + (ad.headline ? " — " + ad.headline : "");
-        var imgHtml = "<img class='ad-photo' src='" + ad.image_url + "'>";
+        var viewAdsData = adsResult.data;
+        var viewAdIndex = 0;
         var adSlot = document.getElementById("adSlot");
         adSlot.style.display = "block";
-        adSlot.innerHTML =
-          "<div class='ad-upgrade-bar'>Passa a <b>Pro</b> per non avere pubblicità sul tuo report — <a href='quantum-checkout.html?tier=pro'>scopri di più</a></div>" +
-          (ctaHref ? "<a href='" + ctaHref + "' target='_blank' rel='noopener sponsored'>" + imgHtml + "</a>" : imgHtml) +
-          "<div class='ad-caption'>" + caption + "</div>";
+
+        var allNames = viewAdsData.map(function(a){
+          return (a.folium_advertisers && a.folium_advertisers.name) ? a.folium_advertisers.name : "";
+        }).filter(Boolean).filter(function(n, i, arr){ return arr.indexOf(n) === i; });
+        document.getElementById("printSponsorFooter").textContent = "Sponsor: " + allNames.join(" · ");
+
+        function renderViewAdSlide(){
+          var ad = viewAdsData[viewAdIndex];
+          var ctaHref = ad.cta_url ? (/^https?:\/\//i.test(ad.cta_url) ? ad.cta_url : "https://" + ad.cta_url) : null;
+          var caption = (ad.folium_advertisers && ad.folium_advertisers.name ? ad.folium_advertisers.name : "") + (ad.headline ? " — " + ad.headline : "");
+          var imgHtml = "<img class='ad-photo' src='" + ad.image_url + "'>";
+          adSlot.innerHTML =
+            "<div class='ad-upgrade-bar'>Passa a <b>Pro</b> per non avere pubblicità sul tuo report — <a href='quantum-checkout.html?tier=pro'>scopri di più</a></div>" +
+            (ctaHref ? "<a href='" + ctaHref + "' target='_blank' rel='noopener sponsored'>" + imgHtml + "</a>" : imgHtml) +
+            "<div class='ad-caption'>" + caption + "</div>";
+        }
+
+        renderViewAdSlide();
+        if(viewAdsData.length > 1){
+          setInterval(function(){
+            viewAdIndex = (viewAdIndex + 1) % viewAdsData.length;
+            renderViewAdSlide();
+          }, 4000);
+        }
       }
     }catch(e){
       console.error("Errore imprevisto nel caricamento inserzionisti:", e);

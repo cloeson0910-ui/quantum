@@ -215,6 +215,23 @@ var FOLIUM_URL = "https://jgsmebtiwgwegjcytmee.supabase.co";
 var FOLIUM_ANON_KEY = "sb_publishable_ToGgNAX4tIn6O7gb6hMa4A_kRi1yztz";
 var foliumClient = window.supabase.createClient(FOLIUM_URL, FOLIUM_ANON_KEY);
 
+var createAdsData = [];
+var createAdIndex = 0;
+
+function renderCreateAdSlide(){
+  if(!createAdsData.length) return;
+  var ad = createAdsData[createAdIndex];
+  var ctaHref = ad.cta_url ? (/^https?:\/\//i.test(ad.cta_url) ? ad.cta_url : "https://" + ad.cta_url) : null;
+  var caption = (ad.folium_advertisers && ad.folium_advertisers.name ? ad.folium_advertisers.name : "") + (ad.headline ? " — " + ad.headline : "");
+  var imgHtml = "<img class='ad-photo' src='" + ad.image_url + "'>";
+  var slot = document.getElementById("createAdSlot");
+  slot.style.display = "block";
+  slot.innerHTML =
+    "<div class='ad-upgrade-bar'>Passa a <b>Pro</b> per non avere pubblicità sul tuo report — <a href='quantum-checkout.html?tier=pro'>scopri di più</a></div>" +
+    (ctaHref ? "<a href='" + ctaHref + "' target='_blank' rel='noopener sponsored'>" + imgHtml + "</a>" : imgHtml) +
+    "<div class='ad-caption'>" + caption + "</div>";
+}
+
 async function loadCreateAdSlot(){
   try{
     var FOLIUM_TENANT_ID = "724f71d8-b499-46c1-9047-021280e913c9";
@@ -226,16 +243,14 @@ async function loadCreateAdSlot(){
       .lte("subscription_start", todayStr).gte("subscription_end", todayStr)
       .limit(8);
     if(adsResult.data && adsResult.data.length){
-      var ad = adsResult.data[0];
-      var ctaHref = ad.cta_url ? (/^https?:\/\//i.test(ad.cta_url) ? ad.cta_url : "https://" + ad.cta_url) : null;
-      var caption = (ad.folium_advertisers && ad.folium_advertisers.name ? ad.folium_advertisers.name : "") + (ad.headline ? " — " + ad.headline : "");
-      var imgHtml = "<img class='ad-photo' src='" + ad.image_url + "'>";
-      var slot = document.getElementById("createAdSlot");
-      slot.style.display = "block";
-      slot.innerHTML =
-        "<div class='ad-upgrade-bar'>Passa a <b>Pro</b> per non avere pubblicità sul tuo report — <a href='quantum-checkout.html?tier=pro'>scopri di più</a></div>" +
-        (ctaHref ? "<a href='" + ctaHref + "' target='_blank' rel='noopener sponsored'>" + imgHtml + "</a>" : imgHtml) +
-        "<div class='ad-caption'>" + caption + "</div>";
+      createAdsData = adsResult.data;
+      renderCreateAdSlide();
+      if(createAdsData.length > 1){
+        setInterval(function(){
+          createAdIndex = (createAdIndex + 1) % createAdsData.length;
+          renderCreateAdSlide();
+        }, 4000);
+      }
     }
   }catch(e){ /* pubblicità non essenziale, nessun blocco */ }
 }

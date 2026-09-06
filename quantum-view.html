@@ -48,7 +48,7 @@
   .ad-slot .ad-upgrade-bar a{ color:#f0e3c8; font-weight:700; text-decoration:underline; }
   .ad-slot .ad-photo{ width:100%; max-height:280px; object-fit:cover; display:block; }
   .ad-slot .ad-caption{ text-align:center; padding:10px; font-size:13px; color:var(--gray); }
-  #printAdPage{ display:none; }
+  #mapSection{ }
   @media print{
     #printAdPage{
       display:block; page-break-before:always;
@@ -126,7 +126,11 @@
   <div class="section" id="mapSection" style="display:none;">
     <h2>Posizione</h2>
     <div id="mapAddressLine" style="font-size:14px;color:var(--ink);margin-bottom:10px;font-weight:600;"></div>
-    <img id="propertyMap" style="width:100%;max-height:280px;object-fit:cover;border:1px solid var(--border);border-radius:8px;" loading="lazy">
+    <div id="mapContainer" style="position:relative;width:100%;max-width:600px;margin:0 auto;overflow:hidden;border:1px solid var(--border);border-radius:8px;">
+      <div id="mapTiles" style="display:grid;grid-template-columns:repeat(3,1fr);width:600px;height:600px;"></div>
+      <div style="position:absolute;top:50%;left:50%;width:14px;height:14px;background:#c0392b;border:2px solid #fff;border-radius:50% 50% 50% 0;transform:translate(-50%,-100%) rotate(-45deg);box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>
+    </div>
+    <div style="font-size:10px;color:var(--gray);text-align:center;margin-top:6px;">© OpenStreetMap contributors</div>
   </div>
 
   <div class="section">
@@ -288,7 +292,22 @@ async function loadReportInner(){
   // ---- Mappa geolocalizzata (coordinate già geocodificate in fase di calcolo) ----
   if(calc.geocode && calc.geocode.lat && calc.geocode.lng){
     var lat = calc.geocode.lat, lng = calc.geocode.lng;
-    document.getElementById("propertyMap").src = "https://staticmap.openstreetmap.de/staticmap.php?center=" + lat + "," + lng + "&zoom=15&size=760x280&markers=" + lat + "," + lng + ",red-pushpin";
+    var zoom = 16;
+    var n = Math.pow(2, zoom);
+    var latRad = lat * Math.PI / 180;
+    var xtileFloat = (lng + 180) / 360 * n;
+    var ytileFloat = (1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * n;
+    var centerXtile = Math.floor(xtileFloat);
+    var centerYtile = Math.floor(ytileFloat);
+
+    var tilesHtml = "";
+    for(var dy=-1; dy<=1; dy++){
+      for(var dx=-1; dx<=1; dx++){
+        var xt = centerXtile + dx, yt = centerYtile + dy;
+        tilesHtml += "<img src='https://tile.openstreetmap.org/" + zoom + "/" + xt + "/" + yt + ".png' style='width:100%;height:100%;display:block;'>";
+      }
+    }
+    document.getElementById("mapTiles").innerHTML = tilesHtml;
     document.getElementById("mapAddressLine").textContent = addrLine;
     document.getElementById("mapSection").style.display = "block";
   }

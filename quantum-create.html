@@ -484,7 +484,7 @@ async function findMarketPricePerSqm(municipality, province, region){
 // ==== SOLO PRO: comparabili AI da portali ====
 async function findAiComparablesAndNarrative(category, municipality, province, region, internalSize, address, propertyCondition, isRented, currentAnnualRent, hasSeaView, hasHistoricCenter, lat, lng){
   try{
-    var result = await immonovaClient.functions.invoke("immonova-ai-valuation-engine", {
+    var result = await client.functions.invoke("quantum-ai-valuation-engine", {
       body:{
         category: category||null, municipality: municipality||null, province: province||null, region: region||null,
         internal_size: internalSize||null, address: address||null, property_condition: propertyCondition||null,
@@ -493,9 +493,9 @@ async function findAiComparablesAndNarrative(category, municipality, province, r
         latitude: lat!=null?lat:null, longitude: lng!=null?lng:null
       }
     });
-    if(result.error) return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null };
+    if(result.error) return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null, proximity:null };
     return result.data;
-  }catch(e){ return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null }; }
+  }catch(e){ return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null, proximity:null }; }
 }
 
 // ==== SOLO PRO: dati territorio (popolazione/reddito/prossimità) ====
@@ -561,12 +561,19 @@ document.getElementById("calculateBtn").addEventListener("click", async function
 
     if(currentTier === "pro"){
       territoryData = await findTerritoryData(municipality, province, region);
+      // La prossimità (scuole/farmacie/supermercati/ospedali) arriva dalla edge nativa Quantum
+      // (Overpass, gratuita), i dati demografici (età/reddito) restano dal motore Immonova —
+      // uniti in un solo oggetto per non toccare la logica di visualizzazione del report.
+      if(aiResult.proximity){
+        territoryData = territoryData || {};
+        territoryData.proximity = aiResult.proximity;
+      }
     }
 
     var priceSources = [];
     if(marketResult.value) priceSources.push({ value: marketResult.value, source: marketResult.source || "Dato di mercato pubblico" });
     (aiResult.comparables||[]).forEach(function(c){
-      if(c.price_per_sqm) priceSources.push({ value: c.price_per_sqm, source: "Comparabile portale immobiliare" + (c.url ? " (" + c.url + ")" : "") });
+      if(c.price_per_sqm) priceSources.push({ value: c.price_per_sqm, source: c.source ? ("Comparabile portale " + c.source) : "Comparabile portale immobiliare" });
     });
     if(manualPricePerSqm){
       // Peso doppio: un dato diretto dell'agenzia sul proprio territorio conta quanto due fonti
@@ -603,14 +610,28 @@ document.getElementById("calculateBtn").addEventListener("click", async function
     var extrasValue = weightedExtrasValue(avgPricePerSqm, garageSqm, gardenSqm);
 
     var incomeValue = null;
+    var usedYieldMin = null, usedYieldMax = null, usedYieldSource = "riserva prudenziale fissa";
+    var reconciliationWeight = 40; // fallback 60/40 se l'AI non fornisce un peso valido
+
     if(currentTier === "pro" && isRented && currentAnnualRent){
-      var capRate = 0.06;
-      incomeValue = currentAnnualRent / capRate;
+      if(aiResult.yield_range_min_pct && aiResult.yield_range_max_pct){
+        usedYieldMin = aiResult.yield_range_min_pct;
+        usedYieldMax = aiResult.yield_range_max_pct;
+        usedYieldSource = "AI (" + (aiResult.yield_justification || "ragionamento su mercato locale") + ")";
+      } else {
+        usedYieldMin = 5.5; usedYieldMax = 7; // riserva prudenziale, MAI spacciata per analisi vera
+      }
+      var avgYieldPct = (usedYieldMin + usedYieldMax) / 2;
+      incomeValue = currentAnnualRent / (avgYieldPct / 100);
+
+      if(aiResult.reconciliation_weight_reddituale_pct != null){
+        reconciliationWeight = aiResult.reconciliation_weight_reddituale_pct;
+      }
     }
 
     var finalValue = comparativeValue;
     if(incomeValue){
-      finalValue = (comparativeValue * 0.6) + (incomeValue * 0.4);
+      finalValue = (comparativeValue * (1 - reconciliationWeight/100)) + (incomeValue * (reconciliationWeight/100));
     }
     if(finalValue) finalValue += extrasValue;
 
@@ -624,6 +645,12 @@ document.getElementById("calculateBtn").addEventListener("click", async function
       positive_elements: aiResult.positive_elements || [],
       risk_elements: aiResult.risk_elements || [],
       conclusion: aiResult.conclusion || null,
+      listing_margin_pct: aiResult.listing_margin_pct || null,
+      listing_margin_justification: aiResult.listing_margin_justification || null,
+      yield_range_min_pct: usedYieldMin,
+      yield_range_max_pct: usedYieldMax,
+      yield_justification: usedYieldSource,
+      reconciliation_weight_pct: incomeValue ? reconciliationWeight : null,
       territory_data: territoryData,
       equivalent_surface: equivSurface,
       avg_price_per_sqm: avgPricePerSqm,

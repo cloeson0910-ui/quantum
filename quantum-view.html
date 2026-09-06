@@ -306,7 +306,8 @@ async function loadReport(){
   addRow(calcTable, "Valore comparativo", formatEuro(calc.comparative_value));
   if(calc.income_value){
     addRow(calcTable, "Valore reddituale (capitalizzazione canone)", formatEuro(calc.income_value));
-    addRow(calcTable, "Riconciliazione", "60% comparativo + 40% reddituale");
+    var reconcWeight = calc.reconciliation_weight_pct != null ? calc.reconciliation_weight_pct : 40;
+    addRow(calcTable, "Riconciliazione", (100-reconcWeight) + "% comparativo + " + reconcWeight + "% reddituale");
   }
   addRow(calcTable, "Valore finale", formatEuro(calc.final_value));
 
@@ -322,35 +323,28 @@ async function loadReport(){
     addRow(marketTable, "Prezzo/mq (fonte pubblica)", calc.market_price_per_sqm ? formatEuro(calc.market_price_per_sqm) + "/mq" : "Non disponibile");
   }
 
-  // ---- Comparabili dettagliati ----
+  // ---- Comparabili dettagliati (schema reale: location, size_sqm, price, price_per_sqm, source testo) ----
   if(calc.ai_comparables && calc.ai_comparables.length){
     document.getElementById("comparablesSection").style.display = "block";
     var compTable = document.getElementById("comparablesTable");
     var compHead = document.createElement("tr");
-    compHead.innerHTML = "<td><b>Indirizzo/rif.</b></td><td><b>Prezzo/mq</b></td><td><b>Fonte</b></td>";
+    compHead.innerHTML = "<td><b>Ubicazione</b></td><td><b>Superficie</b></td><td><b>Prezzo</b></td><td><b>Prezzo/mq</b></td><td><b>Fonte</b></td>";
     compHead.style.borderBottom = "2px solid var(--border)";
     compTable.appendChild(compHead);
+    var portalNames = [];
     calc.ai_comparables.forEach(function(c){
       var tr = document.createElement("tr");
-      var addrCell = c.address || c.description || "Comparabile";
-      var priceCell = c.price_per_sqm ? formatEuro(c.price_per_sqm) + "/mq" : "—";
-      var sourceCell = c.url ? ("<a href='" + c.url + "' target='_blank' rel='noopener' style='color:var(--gold-dark);'>Vedi annuncio</a>") : (c.source || "Portale immobiliare");
-      tr.innerHTML = "<td>" + addrCell + "</td><td>" + priceCell + "</td><td>" + sourceCell + "</td>";
+      tr.innerHTML =
+        "<td>" + (c.location || "—") + "</td>" +
+        "<td>" + (c.size_sqm ? c.size_sqm + " mq" : "—") + "</td>" +
+        "<td>" + (c.price ? formatEuro(c.price) : "—") + "</td>" +
+        "<td>" + (c.price_per_sqm ? formatEuro(c.price_per_sqm) + "/mq" : "—") + "</td>" +
+        "<td>" + (c.source || "—") + "</td>";
       compTable.appendChild(tr);
+      if(c.source && portalNames.indexOf(c.source) === -1) portalNames.push(c.source);
     });
-
-    // ---- Estraggo i domini reali dei portali consultati, senza duplicati ----
-    var domains = [];
-    calc.ai_comparables.forEach(function(c){
-      if(c.url){
-        try{
-          var hostname = new URL(c.url).hostname.replace("www.", "");
-          if(domains.indexOf(hostname) === -1) domains.push(hostname);
-        }catch(e){ /* URL malformato, ignoro senza bloccare il resto */ }
-      }
-    });
-    if(domains.length){
-      document.getElementById("portalsUsedLine").innerHTML = "<b>Portali consultati:</b> " + domains.join(", ");
+    if(portalNames.length){
+      document.getElementById("portalsUsedLine").innerHTML = "<b>Portali consultati:</b> " + portalNames.join(", ");
     }
   }
 
@@ -373,15 +367,29 @@ async function loadReport(){
     document.getElementById("sensitivitySection").style.display = "none";
   }
 
-  // ---- Narrativa (solo Pro) ----
+  // ---- Narrativa (solo Pro) — positive_elements/risk_elements sono oggetti {title, description} ----
   if(isPro && calc.position_analysis){
     document.getElementById("narrativeSection").style.display = "block";
     var narrativeHtml = "<p>" + calc.position_analysis + "</p>";
     if(calc.positive_elements && calc.positive_elements.length){
-      narrativeHtml += "<p><b>Punti di forza:</b> " + calc.positive_elements.join(", ") + "</p>";
+      narrativeHtml += "<p><b>Punti di forza</b></p><ul>";
+      calc.positive_elements.forEach(function(el){
+        narrativeHtml += "<li><b>" + (el.title || "") + "</b>" + (el.description ? " — " + el.description : "") + "</li>";
+      });
+      narrativeHtml += "</ul>";
     }
     if(calc.risk_elements && calc.risk_elements.length){
-      narrativeHtml += "<p><b>Elementi di attenzione:</b> " + calc.risk_elements.join(", ") + "</p>";
+      narrativeHtml += "<p><b>Elementi di attenzione</b></p><ul>";
+      calc.risk_elements.forEach(function(el){
+        narrativeHtml += "<li><b>" + (el.title || "") + "</b>" + (el.description ? " — " + el.description : "") + "</li>";
+      });
+      narrativeHtml += "</ul>";
+    }
+    if(calc.listing_margin_pct){
+      narrativeHtml += "<p><b>Margine di trattativa consigliato:</b> " + calc.listing_margin_pct + "%" + (calc.listing_margin_justification ? " — " + calc.listing_margin_justification : "") + "</p>";
+    }
+    if(calc.yield_range_min_pct && calc.yield_range_max_pct){
+      narrativeHtml += "<p><b>Rendimento atteso (immobile locato):</b> " + calc.yield_range_min_pct + "% – " + calc.yield_range_max_pct + "%" + (calc.yield_justification ? " — " + calc.yield_justification : "") + "</p>";
     }
     if(calc.conclusion){
       narrativeHtml += "<p><b>Conclusione:</b> " + calc.conclusion + "</p>";

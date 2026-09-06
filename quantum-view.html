@@ -634,14 +634,14 @@ async function generateShareLink(){
     if(shareFlagResult.error) throw new Error("Impossibile abilitare la condivisione: " + shareFlagResult.error.message);
 
     setShareProgress(25, "Generazione PDF in corso...");
-    var pdfResult = await fetch(FOLIUM_URL + "/functions/v1/folium-generate-pdf", {
+    var pdfResult = await fetch(SUPABASE_URL + "/functions/v1/quantum-generate-pdf", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": FOLIUM_ANON_KEY,
-        "Authorization": "Bearer " + FOLIUM_ANON_KEY
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY
       },
-      body: JSON.stringify({ product: "quantum", valuation_id: id })
+      body: JSON.stringify({ valuation_id: id })
     });
     var pdfData = await pdfResult.json();
     if(!pdfResult.ok || pdfData.error) throw new Error(pdfData.error || "Errore generazione PDF");
@@ -649,14 +649,14 @@ async function generateShareLink(){
     setShareProgress(60, "Pubblicazione link in corso...");
     var addressLine = document.getElementById("propertyAddressLine").textContent || "Valutazione immobiliare";
 
-    var shareResult = await fetch(FOLIUM_URL + "/functions/v1/folium-publish-share", {
+    var shareResult = await fetch(SUPABASE_URL + "/functions/v1/quantum-publish-share", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": FOLIUM_ANON_KEY,
-        "Authorization": "Bearer " + FOLIUM_ANON_KEY
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY
       },
-      body: JSON.stringify({ product: "quantum", valuationId: id, address: addressLine, pdfUrl: pdfData.pdf_url })
+      body: JSON.stringify({ valuationId: id, address: addressLine, pdfUrl: pdfData.pdf_url })
     });
     var shareData = await shareResult.json();
     if(!shareResult.ok || shareData.error) throw new Error(shareData.error || "Errore pubblicazione link");

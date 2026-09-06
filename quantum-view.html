@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report valutazione | Quantum</title>
+<style>
+  :root{ --gold:#a3822f; --gold-dark:#7a611f; --ink:#111; --gray:#6b6459; --border:#e2d9c4; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,sans-serif;background:#faf7f0;color:var(--ink);}
+  .sheet{max-width:820px;margin:0 auto;background:#fff;padding:40px;}
+  @media print{ body{background:#fff;} .no-print{display:none;} .sheet{padding:0;} }
+  .top-bar{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border);background:#fff;}
+  .top-bar a{color:var(--gold-dark);text-decoration:none;font-size:13px;}
+  .agency-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;border-bottom:2px solid var(--gold);padding-bottom:20px;}
+  .agency-header img{max-height:60px;max-width:180px;}
+  .agency-info{font-size:12px;color:var(--gray);text-align:right;}
+  .quantum-mark{font-family:Georgia,serif;font-size:14px;color:var(--gray);}
+  h1{font-family:Georgia,serif;font-size:26px;margin:0 0 4px;}
+  .subtitle{color:var(--gray);font-size:14px;margin-bottom:32px;}
+  .value-box{background:#f8f5ec;border:1px solid var(--gold);border-radius:12px;padding:28px;text-align:center;margin-bottom:32px;}
+  .value-box .amount{font-size:40px;font-weight:700;color:var(--gold-dark);font-family:Georgia,serif;}
+  .value-box .range{font-size:13px;color:var(--gray);margin-top:6px;}
+  .section{margin-bottom:28px;}
+  .section h2{font-size:15px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gold-dark);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  table td{padding:6px 0;border-bottom:1px solid #f1ede2;}
+  table td:first-child{color:var(--gray);width:45%;}
+  .sensitivity-table{width:100%;border-collapse:collapse;margin-top:8px;}
+  .sensitivity-table th,.sensitivity-table td{border:1px solid var(--border);padding:8px 10px;text-align:center;font-size:13px;}
+  .sensitivity-table th{background:#f1ede2;}
+  .sources-list{font-size:12px;color:var(--gray);}
+  .sources-list li{margin-bottom:4px;}
+  .sources-list .agency-source{color:var(--gold-dark);font-weight:700;}
+  .narrative p{font-size:14px;line-height:1.6;color:#333;}
+  .pro-locked{background:#f8f5ec;border:1px dashed var(--border);border-radius:8px;padding:16px;text-align:center;font-size:13px;color:var(--gray);}
+  .pro-locked a{color:var(--gold-dark);font-weight:700;text-decoration:none;}
+  .ad-slot{margin-top:40px;padding:20px;border-top:1px solid var(--border);text-align:center;}
+  .ad-slot img{max-height:50px;margin-bottom:8px;}
+  .ad-slot a{font-size:12px;color:var(--gray);text-decoration:none;}
+  .footer-note{margin-top:32px;font-size:11px;color:var(--gray);text-align:center;}
+  #loadingMsg{text-align:center;padding:80px;color:var(--gray);}
+  #contentArea{display:none;}
+  .btn-print{background:var(--gold);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div class="top-bar no-print">
+  <a href="quantum-profile.html">← Le mie valutazioni</a>
+  <button class="btn-print" onclick="window.print()">Stampa / Salva PDF</button>
+</div>
+
+<div id="loadingMsg">Caricamento report...</div>
+
+<div class="sheet" id="contentArea">
+
+  <div class="agency-header">
+    <div>
+      <img id="agencyLogo" style="display:none;">
+      <div id="agencyNameFallback" style="font-family:Georgia,serif;font-size:20px;"></div>
+    </div>
+    <div class="agency-info" id="agencyInfo"></div>
+  </div>
+
+  <h1>Relazione di valutazione immobiliare</h1>
+  <div class="subtitle" id="propertyAddressLine"></div>
+
+  <div class="value-box">
+    <div class="amount" id="finalValueText">—</div>
+    <div class="range" id="valueRangeText"></div>
+  </div>
+
+  <div class="section">
+    <h2>Identificazione immobile</h2>
+    <table id="propertyTable"></table>
+  </div>
+
+  <div class="section" id="populationSection" style="display:none;">
+    <h2>Composizione della popolazione</h2>
+    <table id="populationTable"></table>
+  </div>
+
+  <div class="section">
+    <h2>Metodo di calcolo</h2>
+    <table id="calcTable"></table>
+  </div>
+
+  <div class="section" id="sensitivitySection">
+    <h2>Tabella di sensitività (€/mq)</h2>
+    <table class="sensitivity-table" id="sensitivityTable"></table>
+  </div>
+
+  <div class="section" id="narrativeSection" style="display:none;">
+    <h2>Analisi della posizione</h2>
+    <div class="narrative" id="narrativeText"></div>
+  </div>
+
+  <div class="section" id="proximitySection" style="display:none;">
+    <h2>Prossimità servizi</h2>
+    <table id="proximityTable"></table>
+  </div>
+
+  <div class="section" id="lightUpsell" style="display:none;">
+    <div class="pro-locked">
+      Passa a <a href="quantum-checkout.html?tier=pro">Quantum Pro</a> per sbloccare narrativa professionale, dati su popolazione/reddito del territorio, prossimità servizi e report senza pubblicità.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Fonti utilizzate</h2>
+    <ul class="sources-list" id="sourcesList"></ul>
+  </div>
+
+  <div class="ad-slot no-print" id="adSlot" style="display:none;"></div>
+
+  <div class="footer-note">
+    Generato con Quantum — parte di Dominus Suite<br>
+    <span id="calculatedAtText"></span>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+var SUPABASE_URL = "https://znjycwnwkjrzgwvxhojp.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_gTcYFucCifjDUfuvhBhgwg_FSldicss";
+var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+var FOLIUM_URL = "https://jgsmebtiwgwegjcytmee.supabase.co";
+var FOLIUM_ANON_KEY = "sb_publishable_ToGgNAX4tIn6O7gb6hMa4A_kRi1yztz";
+var foliumClient = window.supabase.createClient(FOLIUM_URL, FOLIUM_ANON_KEY);
+
+function formatEuro(n){
+  if(n===null||n===undefined||isNaN(n)) return "—";
+  return new Intl.NumberFormat("it-IT").format(Math.round(n)) + " €";
+}
+function formatDate(iso){
+  if(!iso) return "";
+  return new Date(iso).toLocaleDateString("it-IT", { day:"2-digit", month:"long", year:"numeric" });
+}
+function addRow(tableEl, label, value){
+  if(value === null || value === undefined || value === "") return;
+  var tr = document.createElement("tr");
+  tr.innerHTML = "<td>" + label + "</td><td>" + value + "</td>";
+  tableEl.appendChild(tr);
+}
+
+async function loadReport(){
+  var params = new URLSearchParams(window.location.search);
+  var id = params.get("id");
+  if(!id){
+    document.getElementById("loadingMsg").textContent = "ID valutazione mancante nell'indirizzo.";
+    return;
+  }
+
+  var sessionResult = await client.auth.getSession();
+  if(!sessionResult.data.session){
+    window.location.href = "quantum-create.html";
+    return;
+  }
+
+  var result = await client.from("quantum_valuations").select("*").eq("id", id).single();
+  if(result.error || !result.data){
+    document.getElementById("loadingMsg").textContent = "Valutazione non trovata (potrebbe essere scaduta).";
+    return;
+  }
+
+  var valuation = result.data;
+  var property = valuation.property_data || {};
+  var calc = valuation.calculation_result || {};
+  var isPro = valuation.tier === "pro";
+
+  var clientResult = await client.from("quantum_clients").select("*").eq("id", valuation.client_id).single();
+  var agency = clientResult.data || {};
+
+  // ---- Intestazione agenzia ----
+  if(agency.logo_url){
+    var logoImg = document.getElementById("agencyLogo");
+    logoImg.src = agency.logo_url;
+    logoImg.style.display = "block";
+  } else {
+    document.getElementById("agencyNameFallback").textContent = agency.company_name || agency.email || "Agenzia";
+  }
+  var infoParts = [];
+  if(agency.address) infoParts.push(agency.address);
+  if(agency.phone) infoParts.push(agency.phone);
+  if(agency.vat_number) infoParts.push("P.IVA " + agency.vat_number);
+  document.getElementById("agencyInfo").innerHTML = infoParts.join("<br>");
+
+  // ---- Indirizzo ----
+  var addrLine = (property.address ? property.address + ", " : "") + (property.municipality || "") + (property.postal_code ? " (" + property.postal_code + ")" : "") + (property.province ? ", " + property.province : "");
+  document.getElementById("propertyAddressLine").textContent = addrLine;
+
+  // ---- Valore finale ----
+  document.getElementById("finalValueText").textContent = formatEuro(calc.final_value);
+  if(calc.comparative_min && calc.comparative_max){
+    document.getElementById("valueRangeText").textContent = "Intervallo: " + formatEuro(calc.comparative_min) + " – " + formatEuro(calc.comparative_max);
+  }
+
+  // ---- Identificazione immobile ----
+  var propTable = document.getElementById("propertyTable");
+  addRow(propTable, "Categoria", property.category);
+  addRow(propTable, "Condizione", property.property_condition);
+  addRow(propTable, "Superficie interna", property.internal_size ? property.internal_size + " mq" : null);
+  addRow(propTable, "Superficie accessoria", property.accessory_size ? property.accessory_size + " mq" : null);
+  addRow(propTable, "Garage", property.garage_sqm ? property.garage_sqm + " mq" : null);
+  addRow(propTable, "Giardino", property.garden_sqm ? property.garden_sqm + " mq" : null);
+  addRow(propTable, "Vista mare", property.has_sea_view ? "Sì" : null);
+  addRow(propTable, "Centro storico", property.has_historic_center ? "Sì" : null);
+  addRow(propTable, "Attualmente locato", property.is_rented ? ("Sì — canone annuo " + formatEuro(property.current_annual_rent)) : null);
+
+  // ---- Metodo di calcolo ----
+  var calcTable = document.getElementById("calcTable");
+  addRow(calcTable, "Superficie commerciale equivalente", calc.equivalent_surface ? Math.round(calc.equivalent_surface) + " mq" : null);
+  addRow(calcTable, "Prezzo medio/mq utilizzato", calc.avg_price_per_sqm ? formatEuro(calc.avg_price_per_sqm) + "/mq" : null);
+  addRow(calcTable, "Valore comparativo", formatEuro(calc.comparative_value));
+  if(calc.income_value){
+    addRow(calcTable, "Valore reddituale (capitalizzazione canone)", formatEuro(calc.income_value));
+    addRow(calcTable, "Riconciliazione", "60% comparativo + 40% reddituale");
+  }
+  addRow(calcTable, "Valore finale", formatEuro(calc.final_value));
+
+  // ---- Tabella di sensitività ----
+  if(calc.avg_price_per_sqm && calc.equivalent_surface){
+    var min = calc.comparative_min || calc.avg_price_per_sqm * 0.85;
+    var max = calc.comparative_max || calc.avg_price_per_sqm * 1.15;
+    var steps = 5;
+    var stepSize = (max - min) / (steps - 1);
+    var headRow = "<tr><th>€/mq</th>";
+    var valRow = "<tr><th>Valore stimato</th>";
+    for(var i=0;i<steps;i++){
+      var p = min + stepSize*i;
+      headRow += "<td>" + formatEuro(p) + "</td>";
+      valRow += "<td>" + formatEuro(p * calc.equivalent_surface) + "</td>";
+    }
+    headRow += "</tr>"; valRow += "</tr>";
+    document.getElementById("sensitivityTable").innerHTML = headRow + valRow;
+  } else {
+    document.getElementById("sensitivitySection").style.display = "none";
+  }
+
+  // ---- Narrativa (solo Pro) ----
+  if(isPro && calc.position_analysis){
+    document.getElementById("narrativeSection").style.display = "block";
+    var narrativeHtml = "<p>" + calc.position_analysis + "</p>";
+    if(calc.positive_elements && calc.positive_elements.length){
+      narrativeHtml += "<p><b>Punti di forza:</b> " + calc.positive_elements.join(", ") + "</p>";
+    }
+    if(calc.risk_elements && calc.risk_elements.length){
+      narrativeHtml += "<p><b>Elementi di attenzione:</b> " + calc.risk_elements.join(", ") + "</p>";
+    }
+    if(calc.conclusion){
+      narrativeHtml += "<p><b>Conclusione:</b> " + calc.conclusion + "</p>";
+    }
+    document.getElementById("narrativeText").innerHTML = narrativeHtml;
+  }
+
+  // ---- Popolazione e prossimità (solo Pro) ----
+  if(isPro && calc.territory_data){
+    var td = calc.territory_data;
+    if(td.age_distribution || td.income_distribution){
+      document.getElementById("populationSection").style.display = "block";
+      var popTable = document.getElementById("populationTable");
+      if(td.age_distribution){
+        Object.keys(td.age_distribution).forEach(function(k){
+          addRow(popTable, "Fascia età " + k, td.age_distribution[k] + "%");
+        });
+      }
+      if(td.income_distribution){
+        Object.keys(td.income_distribution).forEach(function(k){
+          addRow(popTable, "Reddito " + k, td.income_distribution[k] + "%");
+        });
+      }
+    }
+    if(td.proximity && Object.keys(td.proximity).length){
+      document.getElementById("proximitySection").style.display = "block";
+      var proxTable = document.getElementById("proximityTable");
+      Object.keys(td.proximity).forEach(function(k){
+        addRow(proxTable, k, td.proximity[k]);
+      });
+    }
+  }
+
+  // ---- Upsell Light ----
+  if(!isPro){
+    document.getElementById("lightUpsell").style.display = "block";
+  }
+
+  // ---- Fonti trasparenti ----
+  var sourcesList = document.getElementById("sourcesList");
+  (calc.price_sources_used || []).forEach(function(s){
+    var li = document.createElement("li");
+    var isAgency = s.indexOf("Agenzia") === 0;
+    li.innerHTML = isAgency ? ("<span class='agency-source'>" + s + "</span>") : s;
+    sourcesList.appendChild(li);
+  });
+  if(!sourcesList.children.length){
+    sourcesList.innerHTML = "<li>Nessuna fonte specifica registrata.</li>";
+  }
+
+  document.getElementById("calculatedAtText").textContent = "Valutazione calcolata il " + formatDate(calc.calculated_at || valuation.created_at);
+
+  // ---- Pubblicità (solo Light, letta da Folium via HTTP) ----
+  if(!isPro){
+    try{
+      var adsResult = await foliumClient.from("folium_advertisers").select("*").limit(1);
+      if(adsResult.data && adsResult.data.length){
+        var ad = adsResult.data[0];
+        var adSlot = document.getElementById("adSlot");
+        adSlot.style.display = "block";
+        adSlot.innerHTML =
+          (ad.logo_url ? "<img src='" + ad.logo_url + "'>" : "") +
+          "<div><a href='" + (ad.link_url || "#") + "' target='_blank' rel='noopener'>" + (ad.company_name || "") + "</a></div>";
+      }
+    }catch(e){ /* pubblicità non essenziale, nessun blocco in caso di errore */ }
+  }
+
+  document.getElementById("loadingMsg").style.display = "none";
+  document.getElementById("contentArea").style.display = "block";
+}
+
+loadReport();
+</script>
+</body>
+</html>

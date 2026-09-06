@@ -434,16 +434,16 @@ async function loadReport(){
   // ---- Pubblicità (solo Light, letta da Folium via HTTP) ----
   if(!isPro){
     try{
-      var adsResult = await foliumClient.from("folium_advertisers").select("*").limit(6);
+      var adsResult = await foliumClient.from("folium_advertisers").select("*").eq("active", true).limit(6);
       if(adsResult.data && adsResult.data.length){
         var allAds = adsResult.data;
-        var names = allAds.map(function(a){ return a.company_name || a.name || ""; }).filter(Boolean);
+        var names = allAds.map(function(a){ return a.name || ""; }).filter(Boolean);
         document.getElementById("printAdFooter").textContent = "Sponsor: " + names.join(" · ");
 
         function buildAdCard(a){
           return "<div class='ad-card'>" +
             (a.logo_url ? "<img src='" + a.logo_url + "'>" : "") +
-            "<div class='ad-name'>" + (a.company_name || a.name || "") + "</div>" +
+            "<div class='ad-name'>" + (a.name || "") + "</div>" +
             "</div>";
         }
 
@@ -460,7 +460,7 @@ async function loadReport(){
         adSlot.style.display = "block";
         adSlot.innerHTML =
           (ad.logo_url ? "<img src='" + ad.logo_url + "'>" : "") +
-          "<div><a href='" + (ad.link_url || "#") + "' target='_blank' rel='noopener'>" + (ad.company_name || ad.name || "") + "</a></div>";
+          "<div>" + (ad.name || "") + "</div>";
       }
     }catch(e){ /* pubblicità non essenziale, nessun blocco in caso di errore */ }
   }

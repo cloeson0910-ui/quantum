@@ -210,14 +210,14 @@ var foliumClient = window.supabase.createClient(FOLIUM_URL, FOLIUM_ANON_KEY);
 
 async function loadCreateAdSlot(){
   try{
-    var adsResult = await foliumClient.from("folium_advertisers").select("*").limit(1);
+    var adsResult = await foliumClient.from("folium_advertisers").select("*").eq("active", true).limit(1);
     if(adsResult.data && adsResult.data.length){
       var ad = adsResult.data[0];
       var slot = document.getElementById("createAdSlot");
       slot.style.display = "block";
       slot.innerHTML =
         (ad.logo_url ? "<img src='" + ad.logo_url + "' style='max-height:36px;margin-bottom:6px;'>" : "") +
-        "<div><a href='" + (ad.link_url || "#") + "' target='_blank' rel='noopener' style='font-size:12px;color:var(--gray);text-decoration:none;'>" + (ad.company_name || ad.name || "") + "</a></div>";
+        "<div style='font-size:12px;color:var(--gray);'>" + (ad.name || "") + "</div>";
     }
   }catch(e){ /* pubblicità non essenziale, nessun blocco */ }
 }

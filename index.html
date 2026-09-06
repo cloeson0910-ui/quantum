@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum | Valutazioni immobiliari immediate</title>
+<style>
+  :root{
+    --gold:#a3822f; --gold-dark:#7a611f; --cream:#f0e9d8; --ink:#111111; --gray:#6b6459;
+    --border:#e2d9c4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Georgia,'Times New Roman',serif;background:#faf7f0;color:var(--ink);}
+  header{padding:48px 24px 24px;text-align:center;}
+  .logo{display:inline-flex;align-items:center;gap:14px;}
+  .logo svg{width:56px;height:56px;}
+  .logo-text{font-size:32px;letter-spacing:1px;}
+  .tagline{color:var(--gray);font-size:15px;margin-top:6px;font-family:Arial,sans-serif;}
+  main{max-width:960px;margin:0 auto;padding:24px 24px 80px;}
+  h1{text-align:center;font-size:26px;font-weight:400;margin-bottom:8px;}
+  .sub{text-align:center;color:var(--gray);font-family:Arial,sans-serif;font-size:15px;margin-bottom:48px;}
+  .plans{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  @media(max-width:720px){.plans{grid-template-columns:1fr;}}
+  .plan{border:1px solid var(--border);border-radius:14px;padding:32px 28px;background:#fff;display:flex;flex-direction:column;}
+  .plan.pro{border-color:var(--gold);box-shadow:0 4px 24px rgba(163,130,47,0.12);}
+  .plan-name{font-size:22px;margin-bottom:4px;}
+  .plan-price{font-family:Arial,sans-serif;font-size:32px;font-weight:700;color:var(--gold-dark);margin:12px 0 4px;}
+  .plan-price span{font-size:14px;font-weight:400;color:var(--gray);}
+  .plan-badge{display:inline-block;font-family:Arial,sans-serif;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;background:var(--gold);color:#fff;padding:4px 10px;border-radius:20px;margin-bottom:14px;width:fit-content;}
+  ul.features{list-style:none;padding:0;margin:20px 0;font-family:Arial,sans-serif;font-size:14px;color:#333;flex:1;}
+  ul.features li{padding:8px 0;border-bottom:1px solid #f1ede2;display:flex;gap:8px;}
+  ul.features li:before{content:"✓";color:var(--gold-dark);font-weight:700;}
+  ul.features li.no:before{content:"–";color:#c7bfae;}
+  ul.features li.no{color:#a39d8f;}
+  .cta{display:block;text-align:center;padding:14px;border-radius:8px;font-family:Arial,sans-serif;font-weight:700;font-size:15px;text-decoration:none;margin-top:12px;}
+  .cta.light{background:#f1ede2;color:var(--ink);}
+  .cta.pro{background:var(--gold);color:#fff;}
+  footer{text-align:center;padding:32px;font-family:Arial,sans-serif;font-size:13px;color:var(--gray);}
+  footer a{color:var(--gold-dark);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="100" cy="100" r="70" fill="none" stroke="#a3822f" stroke-width="2.5"/>
+      <g transform="translate(78,58)">
+        <path d="M0 0 H32 L44 12 V72 H0 Z" fill="none" stroke="#a3822f" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M32 0 V12 H44 Z" fill="none" stroke="#a3822f" stroke-width="3" stroke-linejoin="round"/>
+        <text x="22" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="600" fill="#a3822f">Q</text>
+      </g>
+    </svg>
+    <div class="logo-text">quantum</div>
+  </div>
+  <div class="tagline">valutazioni immobiliari immediate, per la tua agenzia</div>
+</header>
+
+<main>
+  <h1>Scegli il tuo piano</h1>
+  <div class="sub">Genera relazioni di valutazione professionali in pochi minuti.</div>
+
+  <div class="plans">
+
+    <div class="plan">
+      <div class="plan-name">Light</div>
+      <div class="plan-price">Gratis</div>
+      <ul class="features">
+        <li>4 valutazioni al mese</li>
+        <li>Metodo comparativo (dato di mercato pubblico)</li>
+        <li>Il tuo logo e i tuoi dati aziendali sul report</li>
+        <li class="no">Comparabili reali dai portali immobiliari</li>
+        <li class="no">Dati su popolazione, reddito e ricchezza del territorio</li>
+        <li class="no">Prossimità scuole, ospedali, servizi, trasporti</li>
+        <li class="no">Narrativa professionale</li>
+        <li>Pubblicità di terzi nel report</li>
+      </ul>
+      <a href="quantum-create.html?tier=light" class="cta light">Inizia gratis</a>
+    </div>
+
+    <div class="plan pro">
+      <div class="plan-badge">Consigliato</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">19€ <span>/ mese, valutazioni illimitate</span></div>
+      <ul class="features">
+        <li>Valutazioni illimitate</li>
+        <li>Metodo comparativo + reddituale (se locato)</li>
+        <li>Comparabili reali dai portali immobiliari</li>
+        <li>Dati su popolazione, reddito e ricchezza del territorio</li>
+        <li>Prossimità scuole, ospedali, servizi, trasporti pubblici</li>
+        <li>Narrativa professionale generata</li>
+        <li>Il tuo logo e i tuoi dati aziendali sul report</li>
+        <li>Nessuna pubblicità di terzi</li>
+      </ul>
+      <a href="quantum-checkout.html?tier=pro" class="cta pro">Passa a Pro</a>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  Quantum fa parte di <a href="https://dominus-suite.it">Dominus Suite</a>
+</footer>
+
+</body>
+</html>

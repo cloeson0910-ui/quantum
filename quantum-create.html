@@ -493,9 +493,18 @@ async function findAiComparablesAndNarrative(category, municipality, province, r
         latitude: lat!=null?lat:null, longitude: lng!=null?lng:null
       }
     });
-    if(result.error) return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null, proximity:null };
+    if(result.error){
+      console.error("Errore invoke quantum-ai-valuation-engine:", result.error);
+      return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null, proximity:null, ai_error: "Chiamata alla funzione fallita: " + result.error.message };
+    }
+    if(result.data && result.data.ai_error){
+      console.error("Errore interno quantum-ai-valuation-engine:", result.data.ai_error);
+    }
     return result.data;
-  }catch(e){ return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null, proximity:null }; }
+  }catch(e){
+    console.error("Errore imprevisto findAiComparablesAndNarrative:", e);
+    return { comparables:[], position_analysis:null, positive_elements:[], risk_elements:[], conclusion:null, proximity:null, ai_error: "Errore imprevisto: " + e.message };
+  }
 }
 
 // ==== SOLO PRO: dati territorio (popolazione/reddito/prossimità) ====
@@ -641,6 +650,7 @@ document.getElementById("calculateBtn").addEventListener("click", async function
       market_price_per_sqm: marketResult.value,
       market_source: marketResult.source || null,
       ai_comparables: aiResult.comparables || [],
+      ai_error: aiResult.ai_error || aiResult.ai_disclaimer || null,
       position_analysis: aiResult.position_analysis || null,
       positive_elements: aiResult.positive_elements || [],
       risk_elements: aiResult.risk_elements || [],

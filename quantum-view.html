@@ -346,23 +346,38 @@ async function loadReport(){
     if(portalNames.length){
       document.getElementById("portalsUsedLine").innerHTML = "<b>Portali consultati:</b> " + portalNames.join(", ");
     }
+  } else if(calc.ai_error){
+    document.getElementById("comparablesSection").style.display = "block";
+    document.getElementById("comparablesSection").innerHTML =
+      "<h2>Comparabili utilizzati</h2>" +
+      "<div class='no-print' style='font-size:12px;color:#a12525;background:#fbe4e4;padding:10px;border-radius:6px;'>Debug (visibile solo a schermo, mai in stampa): " + calc.ai_error + "</div>";
   }
 
   // ---- Tabella di sensitività ----
   if(calc.avg_price_per_sqm && calc.equivalent_surface){
     var minPricePerSqm = calc.comparative_min ? (calc.comparative_min / calc.equivalent_surface) : (calc.avg_price_per_sqm * 0.85);
     var maxPricePerSqm = calc.comparative_max ? (calc.comparative_max / calc.equivalent_surface) : (calc.avg_price_per_sqm * 1.15);
-    var steps = 5;
-    var stepSize = (maxPricePerSqm - minPricePerSqm) / (steps - 1);
-    var headRow = "<tr><th>€/mq</th>";
-    var valRow = "<tr><th>Valore stimato</th>";
-    for(var i=0;i<steps;i++){
-      var p = minPricePerSqm + stepSize*i;
-      headRow += "<td>" + Math.round(p) + " €/mq</td>";
-      valRow += "<td>" + formatEuro(p * calc.equivalent_surface) + "</td>";
+
+    if(maxPricePerSqm - minPricePerSqm < 1){
+      // Un'unica fonte di prezzo disponibile: nessun range reale da mostrare, 5 colonne
+      // identiche non aggiungerebbero informazione — meglio dirlo chiaramente.
+      document.getElementById("sensitivityTable").innerHTML = "";
+      document.getElementById("sensitivitySection").innerHTML =
+        "<h2>Tabella di sensitività (€/mq)</h2>" +
+        "<div style='font-size:13px;color:var(--gray);'>Non disponibile: il calcolo si basa su un'unica fonte di prezzo (" + Math.round(calc.avg_price_per_sqm) + " €/mq), senza un intervallo da mostrare. Aggiungi comparabili o un dato manuale diverso per ottenere un range.</div>";
+    } else {
+      var steps = 5;
+      var stepSize = (maxPricePerSqm - minPricePerSqm) / (steps - 1);
+      var headRow = "<tr><th>€/mq</th>";
+      var valRow = "<tr><th>Valore stimato</th>";
+      for(var i=0;i<steps;i++){
+        var p = minPricePerSqm + stepSize*i;
+        headRow += "<td>" + Math.round(p) + " €/mq</td>";
+        valRow += "<td>" + formatEuro(p * calc.equivalent_surface) + "</td>";
+      }
+      headRow += "</tr>"; valRow += "</tr>";
+      document.getElementById("sensitivityTable").innerHTML = headRow + valRow;
     }
-    headRow += "</tr>"; valRow += "</tr>";
-    document.getElementById("sensitivityTable").innerHTML = headRow + valRow;
   } else {
     document.getElementById("sensitivitySection").style.display = "none";
   }

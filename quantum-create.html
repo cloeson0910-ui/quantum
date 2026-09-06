@@ -43,6 +43,13 @@
   .limit-box{background:#fbe4e4;color:#a12525;padding:14px;border-radius:8px;font-size:14px;margin-bottom:16px;}
   .limit-box a{color:#a12525;font-weight:700;}
   #formArea{display:none;}
+  #createAdSlot{ max-width:720px; margin:0 auto; }
+  #createAdSlot .ad-upgrade-bar{
+    background:#111; color:#fff; padding:12px 20px; font-size:13px; display:flex; justify-content:space-between; align-items:center;
+  }
+  #createAdSlot .ad-upgrade-bar a{ color:#f0e3c8; font-weight:700; text-decoration:underline; }
+  #createAdSlot .ad-photo{ width:100%; max-height:280px; object-fit:cover; display:block; }
+  #createAdSlot .ad-caption{ text-align:center; padding:10px; font-size:13px; color:var(--gray); background:#fff; }
 </style>
 </head>
 <body>
@@ -56,7 +63,7 @@
   Ti serve anche un dossier d'investimento completo? <a href="https://folium.dominus-suite.it/folium-plans.html" target="_blank" rel="noopener" style="color:var(--gold-dark);font-weight:700;text-decoration:none;">Generalo gratis con Folium →</a>
 </div>
 
-<div id="createAdSlot" style="display:none;text-align:center;padding:12px 20px;border-bottom:1px solid var(--border);background:#fff;"></div>
+<div id="createAdSlot" style="display:none;"></div>
 
 <main>
 
@@ -216,8 +223,9 @@ async function loadCreateAdSlot(){
       var slot = document.getElementById("createAdSlot");
       slot.style.display = "block";
       slot.innerHTML =
-        (ad.logo_url ? "<img src='" + ad.logo_url + "' style='max-height:36px;margin-bottom:6px;'>" : "") +
-        "<div style='font-size:12px;color:var(--gray);'>" + (ad.name || "") + "</div>";
+        "<div class='ad-upgrade-bar'>Passa a <b>Pro</b> per non avere pubblicità sul tuo report — <a href='quantum-checkout.html?tier=pro'>scopri di più</a></div>" +
+        (ad.logo_url ? "<img class='ad-photo' src='" + ad.logo_url + "'>" : "") +
+        "<div class='ad-caption'>" + (ad.name || "") + "</div>";
     }
   }catch(e){ /* pubblicità non essenziale, nessun blocco */ }
 }

@@ -490,12 +490,36 @@ async function generateShareLink(){
   var id = params.get("id");
   var btn = document.getElementById("shareBtn");
   var original = btn.textContent;
-  btn.disabled = true; btn.textContent = "Generazione link...";
+  btn.disabled = true; btn.textContent = "Generazione PDF...";
   try{
-    var updateResult = await client.from("quantum_valuations").update({ is_shared: true }).eq("id", id);
-    if(updateResult.error){ throw new Error(updateResult.error.message); }
-    var shareUrl = window.location.origin + window.location.pathname + "?id=" + id;
-    document.getElementById("shareLinkInput").value = shareUrl;
+    var pdfResult = await fetch(FOLIUM_URL + "/functions/v1/folium-generate-pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": FOLIUM_ANON_KEY,
+        "Authorization": "Bearer " + FOLIUM_ANON_KEY
+      },
+      body: JSON.stringify({ product: "quantum", valuation_id: id })
+    });
+    var pdfData = await pdfResult.json();
+    if(!pdfResult.ok || pdfData.error) throw new Error(pdfData.error || "Errore generazione PDF");
+
+    btn.textContent = "Pubblicazione link...";
+    var addressLine = document.getElementById("propertyAddressLine").textContent || "Valutazione immobiliare";
+
+    var shareResult = await fetch(FOLIUM_URL + "/functions/v1/folium-publish-share", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": FOLIUM_ANON_KEY,
+        "Authorization": "Bearer " + FOLIUM_ANON_KEY
+      },
+      body: JSON.stringify({ product: "quantum", valuationId: id, address: addressLine, pdfUrl: pdfData.pdf_url })
+    });
+    var shareData = await shareResult.json();
+    if(!shareResult.ok || shareData.error) throw new Error(shareData.error || "Errore pubblicazione link");
+
+    document.getElementById("shareLinkInput").value = shareData.url;
     document.getElementById("shareLinkBox").style.display = "block";
   }catch(e){
     alert("Non è stato possibile generare il link: " + e.message);

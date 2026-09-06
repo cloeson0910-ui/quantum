@@ -48,6 +48,17 @@
   .ad-slot .ad-upgrade-bar a{ color:#f0e3c8; font-weight:700; text-decoration:underline; }
   .ad-slot .ad-photo{ width:100%; max-height:280px; object-fit:cover; display:block; }
   .ad-slot .ad-caption{ text-align:center; padding:10px; font-size:13px; color:var(--gray); }
+  .force-print-mode .no-print, .force-print-mode .no-print-doc{ display:none !important; }
+  .force-print-mode #printAdPage{
+    display:block !important; page-break-before:always;
+    padding:40px 20px; text-align:center;
+  }
+  .force-print-mode #printSponsorFooter{
+    display:block !important; position:fixed; bottom:0; left:0; right:0;
+    text-align:center; font-size:9px; color:#999; padding:4px 20px;
+    border-top:1px solid #ddd; background:#fff;
+  }
+  .force-print-mode .sheet{ padding-bottom:36px; }
   #mapSection{ }
   @media print{
     #printAdPage{
@@ -231,6 +242,13 @@ function addRow(tableEl, label, value){
 }
 
 var globalAdsData = [];
+
+// Sicurezza indipendente da Browserless: se l'URL contiene print=1 (lo passiamo noi
+// stessi da folium-generate-pdf), forziamo la modalità stampa via classe CSS invece di
+// dipendere solo da emulateMediaType lato servizio esterno, che potrebbe non funzionare.
+if(new URLSearchParams(window.location.search).get("print") === "1"){
+  document.body.classList.add("force-print-mode");
+}
 
 async function loadReportInner(){
   var params = new URLSearchParams(window.location.search);

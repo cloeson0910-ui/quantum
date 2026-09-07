@@ -58,6 +58,7 @@
   .force-print-mode #tocPage{ display:block !important; page-break-after:always; }
   #tocPage ol{ list-style:none; margin:0; padding:0; max-width:420px; margin:0 auto; }
   #tocPage li{ display:flex; justify-content:space-between; align-items:baseline; padding:10px 0; border-bottom:1px solid var(--border); font-size:15px; }
+  .section h2 span.section-num{ color:var(--gold-dark); margin-right:6px; }
   #tocPage li span.toc-num{ color:var(--gold-dark); font-weight:700; margin-right:12px; }
   .force-print-mode #printAdPage{
     display:block !important; page-break-before:always;
@@ -650,6 +651,7 @@ async function loadReportInner(){
     var li = document.createElement("li");
     li.innerHTML = "<span><span class='toc-num'>" + tocNum + ".</span>" + h2.textContent + "</span>";
     tocList.appendChild(li);
+    h2.innerHTML = "<span class='section-num'>" + tocNum + ".</span>" + h2.textContent;
     tocNum++;
   });
 }

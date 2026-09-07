@@ -610,9 +610,19 @@ async function loadReportInner(){
     var proxKeys = Object.keys(proximity);
     document.getElementById("proximitySection").style.display = "block";
     if(proxKeys.length){
+      // Stessa etichetta esatta restituita da quantum-ai-valuation-engine (findProximityData) —
+      // se lì cambia il testo di una label, va aggiornata anche qui o l'icona non compare più.
+      var proxEmoji = {
+        "Scuola più vicina": "🏫",
+        "Farmacia più vicina": "💊",
+        "Supermercato più vicino": "🛒",
+        "Ospedale più vicino": "🏥",
+        "Stazione più vicina": "🚉"
+      };
       var proxTable = document.getElementById("proximityTable");
       proxKeys.forEach(function(k){
-        addRow(proxTable, k, proximity[k]);
+        var icon = proxEmoji[k] ? (proxEmoji[k] + " ") : "";
+        addRow(proxTable, icon + k, proximity[k]);
       });
     } else {
       // Onestà invece di sparire in silenzio: se Overpass non ha trovato nulla entro il

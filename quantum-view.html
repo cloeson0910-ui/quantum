@@ -42,6 +42,18 @@
   .sensitivity-table{width:100%;border-collapse:collapse;margin-top:8px;}
   .sensitivity-table th,.sensitivity-table td{border:1px solid var(--border);padding:8px 10px;text-align:center;font-size:13px;}
   .sensitivity-table th{background:#f1ede2;}
+  .bar-chart-row{display:grid;grid-template-columns:130px 1fr 50px;align-items:center;gap:12px;margin-bottom:10px;}
+  .bar-chart-row .bar-label{font-size:12px;color:var(--gold-dark);}
+  .bar-chart-track{height:14px;background:rgba(163,130,47,.10);border-radius:2px;overflow:hidden;}
+  .bar-chart-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-dark));border-radius:2px;}
+  .bar-chart-row .bar-pct{font-size:12px;color:var(--gray);text-align:right;}
+  #comparablesTable{table-layout:fixed;width:100%;}
+  #comparablesTable td{padding:7px 6px;font-size:12.5px;vertical-align:top;}
+  #comparablesTable td:nth-child(1){width:32%;white-space:normal;}
+  #comparablesTable td:nth-child(2){width:14%;white-space:nowrap;}
+  #comparablesTable td:nth-child(3){width:18%;white-space:nowrap;}
+  #comparablesTable td:nth-child(4){width:16%;white-space:nowrap;}
+  #comparablesTable td:nth-child(5){width:20%;white-space:normal;}
   .sources-list{font-size:12px;color:var(--gray);}
   .sources-list li{margin-bottom:4px;}
   .sources-list .agency-source{color:var(--gold-dark);font-weight:700;}
@@ -56,6 +68,9 @@
   .force-print-mode .no-print, .force-print-mode .no-print-doc{ display:none !important; }
   .force-print-mode #coverPage{ display:block !important; page-break-after:always; }
   .force-print-mode #tocPage{ display:block !important; page-break-after:always; }
+  .force-print-mode.pro-tier #quantumWatermarkBadge{ display:none !important; }
+  .force-print-mode.pro-tier .footer-note{ display:none !important; }
+  .pro-tier .footer-note{ display:none; }
   #tocPage ol{ list-style:none; margin:0; padding:0; max-width:420px; margin:0 auto; }
   #tocPage li{ display:flex; justify-content:space-between; align-items:baseline; padding:10px 0; border-bottom:1px solid var(--border); font-size:15px; }
   .section h2 span.section-num{ color:var(--gold-dark); margin-right:6px; }
@@ -317,7 +332,9 @@ async function loadReportInner(){
   var property = valuation.property_data || {};
   var calc = valuation.calculation_result || {};
   var isPro = valuation.tier === "pro";
-  if(isPro){ document.getElementById("quantumWatermarkBadge").style.display = "none"; }
+  // classe su body, non stile inline: la regola CSS di stampa usa !important e batterebbe
+  // qualsiasi style.display impostato da qui (bug reale, corretto 2026-09-07).
+  if(isPro){ document.body.classList.add("pro-tier"); }
 
   var clientResult = await client.from("quantum_clients").select("*").eq("id", valuation.client_id).single();
   var agency = clientResult.data || {};
@@ -530,22 +547,46 @@ async function loadReportInner(){
     document.getElementById("narrativeText").innerHTML = narrativeHtml;
   }
 
-  // ---- Popolazione e prossimità (solo Pro) ----
+  // ---- Popolazione e reddito (solo Pro) — struttura REALE verificata su immonova-demographics-engine:
+  // age_distribution/income_distribution sono {counts, percentages, provider_name, source_url, ...},
+  // i grafici a barre vanno costruiti da .percentages (fascia->percentuale), MAI dall'oggetto intero
+  // (bug precedente: iterava su source_url/provider_name/retrieved_at come se fossero fasce). Stesso
+  // helper barChartHTML() di folium-view.html, mai una tabella nuda.
+  function barChartHTML(dataObj){
+    var entries = Object.entries(dataObj || {});
+    if(!entries.length) return "<div style='font-size:12px;color:var(--gray);'>Dati non disponibili.</div>";
+    var max = Math.max.apply(null, entries.map(function(e){ return Number(e[1]) || 0; }).concat([1]));
+    return entries.map(function(e){
+      var label = e[0], value = e[1];
+      var width = Math.max(2, (Number(value) / max) * 100);
+      return "<div class='bar-chart-row'>" +
+        "<div class='bar-label'>" + label + "</div>" +
+        "<div class='bar-chart-track'><div class='bar-chart-fill' style='width:" + width + "%;'></div></div>" +
+        "<div class='bar-pct'>" + value + "%</div>" +
+        "</div>";
+    }).join("");
+  }
+
   if(isPro && calc.territory_data){
     var td = calc.territory_data;
     if(td.age_distribution || td.income_distribution){
       document.getElementById("populationSection").style.display = "block";
-      var popTable = document.getElementById("populationTable");
+      var popHtml = "";
       if(td.age_distribution){
-        Object.keys(td.age_distribution).forEach(function(k){
-          addRow(popTable, "Fascia età " + k, td.age_distribution[k] + "%");
-        });
+        popHtml += "<div style='font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--gold-dark);margin-bottom:10px;'>Fasce d'età</div>";
+        popHtml += barChartHTML(td.age_distribution.percentages || {});
       }
       if(td.income_distribution){
-        Object.keys(td.income_distribution).forEach(function(k){
-          addRow(popTable, "Reddito " + k, td.income_distribution[k] + "%");
-        });
+        popHtml += "<div style='font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--gold-dark);margin:22px 0 10px;'>Fasce di reddito</div>";
+        popHtml += barChartHTML(td.income_distribution.percentages || {});
       }
+      var popSourceParts = [];
+      if(td.age_distribution && td.age_distribution.provider_name) popSourceParts.push(td.age_distribution.provider_name);
+      if(td.income_distribution && td.income_distribution.provider_name) popSourceParts.push(td.income_distribution.provider_name);
+      if(popSourceParts.length){
+        popHtml += "<div style='font-size:11px;color:var(--gray);margin-top:16px;'>Fonte: " + popSourceParts.join(" · ") + "</div>";
+      }
+      document.getElementById("populationTable").outerHTML = "<div id='populationTable'>" + popHtml + "</div>";
     }
     if(td.proximity && Object.keys(td.proximity).length){
       document.getElementById("proximitySection").style.display = "block";

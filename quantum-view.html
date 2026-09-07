@@ -55,6 +55,10 @@
   .ad-slot .ad-caption{ text-align:center; padding:10px; font-size:13px; color:var(--gray); }
   .force-print-mode .no-print, .force-print-mode .no-print-doc{ display:none !important; }
   .force-print-mode #coverPage{ display:block !important; page-break-after:always; }
+  .force-print-mode #tocPage{ display:block !important; page-break-after:always; }
+  #tocPage ol{ list-style:none; margin:0; padding:0; max-width:420px; margin:0 auto; }
+  #tocPage li{ display:flex; justify-content:space-between; align-items:baseline; padding:10px 0; border-bottom:1px solid var(--border); font-size:15px; }
+  #tocPage li span.toc-num{ color:var(--gold-dark); font-weight:700; margin-right:12px; }
   .force-print-mode #printAdPage{
     display:block !important; page-break-before:always;
     padding:40px 20px; text-align:center;
@@ -129,6 +133,13 @@
     <div id="coverAgencyInfo" style="font-size:13px;color:var(--gray);margin-bottom:80px;"></div>
     <div style="font-family:Georgia,serif;font-size:30px;color:var(--ink);margin-bottom:14px;">Relazione di valutazione immobiliare</div>
     <div id="coverAddress" style="font-size:16px;color:var(--gray);"></div>
+  </div>
+</div>
+
+<div id="tocPage" style="display:none;">
+  <div style="max-width:820px;margin:0 auto;background:#fff;min-height:100vh;padding:60px 40px;">
+    <div style="font-family:Georgia,serif;font-size:24px;color:var(--ink);text-align:center;margin-bottom:36px;">Sommario</div>
+    <ol id="tocList"></ol>
   </div>
 </div>
 
@@ -623,8 +634,24 @@ async function loadReportInner(){
     }
   }
 
+  // ---- Sommario: costruito leggendo le sezioni REALMENTE visibili, nell'ordine in cui compaiono ----
+  // (mai un elenco scritto a mano: si disallineerebbe ogni volta che l'ordine o le sezioni Pro/condizionali cambiano)
+  // Va fatto DOPO aver reso visibile #contentArea, altrimenti offsetParent è sempre null e il sommario risulta vuoto.
   document.getElementById("loadingMsg").style.display = "none";
   document.getElementById("contentArea").style.display = "block";
+
+  var tocList = document.getElementById("tocList");
+  var allSections = document.querySelectorAll("#contentArea > .section");
+  var tocNum = 1;
+  allSections.forEach(function(sec){
+    if(sec.offsetParent === null) return; // sezione nascosta (display:none), es. Pro-only o senza dati
+    var h2 = sec.querySelector("h2");
+    if(!h2) return; // sezioni senza titolo (es. il box cross-sell Folium) non entrano nel sommario
+    var li = document.createElement("li");
+    li.innerHTML = "<span><span class='toc-num'>" + tocNum + ".</span>" + h2.textContent + "</span>";
+    tocList.appendChild(li);
+    tocNum++;
+  });
 }
 
 var shareAdInterval = null;

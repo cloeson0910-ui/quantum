@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abbonamento confermato | Quantum</title>
+<style>
+  :root{ --gold:#a3822f; --gold-dark:#7a611f; --ink:#111; --gray:#6b6459; --border:#e2d9c4; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,sans-serif;background:#faf7f0;color:var(--ink);}
+  header{background:#111;padding:32px 18px;text-align:center;color:#f0e3c8;}
+  header .brand{font-family:Georgia,serif;font-weight:400;letter-spacing:3px;font-size:22px;color:var(--gold);}
+  .wrap{max-width:460px;margin:0 auto;padding:40px 16px 60px;text-align:center;}
+  .icon{font-size:52px;margin-bottom:8px;}
+  h1{font-family:Georgia,serif;font-size:20px;margin:0 0 10px;}
+  p{font-size:14px;color:var(--gray);line-height:1.6;}
+  .card{background:#fff;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.06);padding:22px 20px;margin-top:20px;text-align:left;}
+  .row{display:flex;justify-content:space-between;font-size:13.5px;padding:7px 0;border-bottom:1px dashed var(--border);}
+  .row:last-child{border-bottom:none;}
+  .row b{color:var(--gold-dark);}
+  .btn{display:inline-block;margin-top:26px;padding:13px 26px;border-radius:10px;background:var(--gold);color:#fff;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:.5px;}
+  .pending{color:var(--gold-dark);}
+  .err{color:#a33;}
+</style>
+</head>
+<body>
+<header><div class="brand">QUANTUM</div></header>
+<div class="wrap">
+  <div id="content">
+    <div class="icon">⏳</div>
+    <h1>Verifica del pagamento in corso…</h1>
+    <p>Non chiudere questa pagina, di solito richiede pochi secondi.</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://znjycwnwkjrzgwvxhojp.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_gTcYFucCifjDUfuvhBhgwg_FSldicss";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtDate(iso){ return new Date(iso).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' }); }
+
+  const subscriptionRowId = new URLSearchParams(window.location.search).get('subscription_row_id');
+  const content = document.getElementById('content');
+
+  function renderConfirmed(sub){
+    content.innerHTML = `
+      <div class="icon">✅</div>
+      <h1>Abbonamento Quantum Pro attivo!</h1>
+      <p>Da ora hai valutazioni illimitate, narrativa professionale, dati di territorio e report senza pubblicità.</p>
+      <div class="card">
+        <div class="row"><span>Piano</span><b>Quantum Pro</b></div>
+        <div class="row"><span>Rinnovo</span><b>${esc(fmtDate(sub.current_period_end))}</b></div>
+      </div>
+      <a class="btn" href="quantum-create.html">Crea la tua valutazione →</a>
+    `;
+  }
+
+  function renderPending(){
+    content.innerHTML = `
+      <div class="icon">⏳</div>
+      <h1 class="pending">Pagamento in fase di conferma…</h1>
+      <p>Stripe sta confermando il pagamento — ricontrolliamo automaticamente ogni pochi secondi, non chiudere la pagina.</p>
+    `;
+  }
+
+  function renderError(msg){
+    content.innerHTML = `
+      <div class="icon">⚠️</div>
+      <h1 class="err">Qualcosa non torna</h1>
+      <p>${esc(msg)}</p>
+      <a class="btn" href="quantum-checkout.html">Torna al piano Pro</a>
+    `;
+  }
+
+  async function checkSubscription(){
+    if(!subscriptionRowId){ renderError('Nessun riferimento al pagamento trovato nel link.'); return; }
+    const { data: sub, error } = await sb.from('quantum_subscriptions').select('*').eq('id', subscriptionRowId).maybeSingle();
+    if(error || !sub){ renderError('Impossibile trovare i dettagli di questo abbonamento.'); return; }
+
+    if(sub.status === 'active'){
+      renderConfirmed(sub);
+    } else if(sub.status === 'pending'){
+      renderPending();
+      setTimeout(checkSubscription, 4000);
+    } else {
+      renderError(`Stato pagamento: ${sub.status}. Contatta l'assistenza se il problema persiste.`);
+    }
+  }
+
+  checkSubscription();
+</script>
+</body>
+</html>

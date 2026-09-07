@@ -75,11 +75,11 @@
   #tocPage li{ display:flex; justify-content:space-between; align-items:baseline; padding:10px 0; border-bottom:1px solid var(--border); font-size:15px; }
   .section h2 span.section-num{ color:var(--gold-dark); margin-right:6px; }
   #tocPage li span.toc-num{ color:var(--gold-dark); font-weight:700; margin-right:12px; }
-  .force-print-mode #printAdPage{
+  .force-print-mode #printAdPage.has-ads{
     display:block !important; page-break-before:always;
     padding:40px 20px; text-align:center;
   }
-  .force-print-mode #printSponsorFooter{
+  .force-print-mode #printSponsorFooter.has-content{
     display:block !important; position:fixed; bottom:0; left:0; right:0;
     text-align:center; font-size:9px; color:#999; padding:4px 20px;
     border-top:1px solid #ddd; background:#fff;
@@ -87,7 +87,7 @@
   .force-print-mode .sheet{ padding-bottom:36px; }
   #mapSection{ }
   @media print{
-    #printAdPage{
+    #printAdPage.has-ads{
       display:block; page-break-before:always;
       padding:40px 20px; text-align:center;
     }
@@ -98,7 +98,7 @@
   }
   #printSponsorFooter{ display:none; }
   @media print{
-    #printSponsorFooter{
+    #printSponsorFooter.has-content{
       display:block; position:fixed; bottom:0; left:0; right:0;
       text-align:center; font-size:9px; color:#999; padding:4px 20px;
       border-top:1px solid #ddd; background:#fff;
@@ -419,7 +419,19 @@ async function loadReportInner(){
       private_sea_access:"Accesso privato al mare", heating:"Riscaldamento", habitability:"Agibilità",
       parking:"Parcheggio", seafront:"Fronte mare"
     };
-    var activeFeatures = Object.keys(property.features).filter(function(k){ return property.features[k]; }).map(function(k){ return featLabels[k] || k; });
+    // Stessa mappa emoji di quantum-create.html (AMENITIES) — deve restare sincronizzata con
+    // quella, mai divergere (stessa lezione già imparata su Folium con i 19 pittogrammi).
+    // Visibili SOLO su Pro, come nel form di creazione.
+    var featEmoji = {
+      pool:"🏊", garden:"🌳", garage:"🚗", terrace:"🏛️", annex:"🏠",
+      fireplace:"🔥", air_conditioning:"❄️", elevator:"🛗", gym:"🏋️",
+      wine_cellar:"🍷", security_system:"🔒", solar_panels:"☀️",
+      private_sea_access:"⚓", heating:"🌡️", habitability:"📋",
+      parking:"🅿️", seafront:"🏖️"
+    };
+    var activeFeatures = Object.keys(property.features).filter(function(k){ return property.features[k]; }).map(function(k){
+      return isPro && featEmoji[k] ? (featEmoji[k] + " " + (featLabels[k] || k)) : (featLabels[k] || k);
+    });
     if(activeFeatures.length){
       addRow(propTable, "Accessori", activeFeatures.join(", "));
     }
@@ -567,6 +579,10 @@ async function loadReportInner(){
     }).join("");
   }
 
+  // Popolazione/reddito restano Pro-only (richiedono immonova-demographics-engine, chiamato
+  // solo per Pro in quantum-create.html). La prossimità servizi invece è calcolata GRATIS per
+  // TUTTI i piani già dentro quantum-ai-valuation-engine (Overpass API) — va quindi mostrata
+  // anche su Light, non solo su Pro (richiesta esplicita, era ingiustamente gated solo a Pro).
   if(isPro && calc.territory_data){
     var td = calc.territory_data;
     if(td.age_distribution || td.income_distribution){
@@ -588,12 +604,23 @@ async function loadReportInner(){
       }
       document.getElementById("populationTable").outerHTML = "<div id='populationTable'>" + popHtml + "</div>";
     }
-    if(td.proximity && Object.keys(td.proximity).length){
-      document.getElementById("proximitySection").style.display = "block";
+  }
+  if(calc.territory_data && calc.territory_data.proximity){
+    var proximity = calc.territory_data.proximity;
+    var proxKeys = Object.keys(proximity);
+    document.getElementById("proximitySection").style.display = "block";
+    if(proxKeys.length){
       var proxTable = document.getElementById("proximityTable");
-      Object.keys(td.proximity).forEach(function(k){
-        addRow(proxTable, k, td.proximity[k]);
+      proxKeys.forEach(function(k){
+        addRow(proxTable, k, proximity[k]);
       });
+    } else {
+      // Onestà invece di sparire in silenzio: se Overpass non ha trovato nulla entro il
+      // raggio di ricerca, lo si dice chiaramente (stesso principio della tabella di
+      // sensitività con un'unica fonte, o dei comparabili AI non trovati).
+      document.getElementById("proximitySection").innerHTML =
+        "<h2>Prossimità servizi</h2>" +
+        "<div style='font-size:13px;color:var(--gray);'>Nessuna scuola, farmacia, supermercato, ospedale o stazione trovati entro 2 km da questo indirizzo nei dati OpenStreetMap.</div>";
     }
   }
 
@@ -639,6 +666,7 @@ async function loadReportInner(){
           return (a.folium_advertisers && a.folium_advertisers.name) ? a.folium_advertisers.name : "";
         }).filter(Boolean).filter(function(n, i, arr){ return arr.indexOf(n) === i; });
         document.getElementById("printSponsorFooter").textContent = "Sponsor: " + allNames.join(" · ");
+        document.getElementById("printSponsorFooter").classList.add("has-content");
 
         function renderViewAdSlide(){
           var ad = viewAdsData[viewAdIndex];
@@ -670,6 +698,7 @@ async function loadReportInner(){
             "</div>";
         });
         document.getElementById("printAdPage").innerHTML = printPageHtml;
+        document.getElementById("printAdPage").classList.add("has-ads");
       }
     }catch(e){
       console.error("Errore imprevisto nel caricamento inserzionisti:", e);

@@ -563,20 +563,23 @@ document.getElementById("calculateBtn").addEventListener("click", async function
 
     // ---- Comparabili AI da portali: ora inclusi anche in Light, dentro lo stesso limite di
     // 4 valutazioni/mese già esistente (costo variabile coperto dalla pubblicità di terzi che
-    // compare comunque sul report Light). Territorio/prossimità restano differenziatore Pro. ----
+    // compare comunque sul report Light). Dati demografici (età/reddito) restano differenziatore
+    // Pro; la prossimità servizi invece è gratuita (Overpass) e va data anche a Light (richiesta
+    // esplicita 2026-09-07: prima era scartata per Light anche se già calcolata, senza motivo). ----
     showMsg("progressMsg","Ricerca comparabili sui portali immobiliari...","info");
     setProgress(55);
     aiResult = await findAiComparablesAndNarrative(category, municipality, province, region, internalSize, address, propertyCondition, isRented, currentAnnualRent, hasSeaView, hasHistoricCenter, geo.lat, geo.lng);
 
     if(currentTier === "pro"){
       territoryData = await findTerritoryData(municipality, province, region);
-      // La prossimità (scuole/farmacie/supermercati/ospedali) arriva dalla edge nativa Quantum
-      // (Overpass, gratuita), i dati demografici (età/reddito) restano dal motore Immonova —
-      // uniti in un solo oggetto per non toccare la logica di visualizzazione del report.
-      if(aiResult.proximity){
-        territoryData = territoryData || {};
-        territoryData.proximity = aiResult.proximity;
-      }
+    }
+    // La prossimità (scuole/farmacie/supermercati/ospedali/stazioni) arriva dalla edge nativa
+    // Quantum (Overpass, gratuita) ed è disponibile su ENTRAMBI i piani — non più dentro
+    // l'if(currentTier==="pro") di sopra. I dati demografici (età/reddito) restano dal motore
+    // Immonova, solo Pro — uniti in un solo oggetto per non toccare la logica di visualizzazione.
+    if(aiResult.proximity){
+      territoryData = territoryData || {};
+      territoryData.proximity = aiResult.proximity;
     }
 
     var priceSources = [];

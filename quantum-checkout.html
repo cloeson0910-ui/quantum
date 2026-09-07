@@ -21,6 +21,10 @@
   .plan button{width:100%;padding:14px;border:none;border-radius:9px;background:var(--gold);color:#fff;font-size:14px;font-weight:700;letter-spacing:.5px;cursor:pointer;margin-top:10px;}
   .plan button:disabled{opacity:.6;}
   .plan .fineprint{font-size:11px;color:var(--gray);margin-top:12px;}
+  .billing-toggle{display:flex;gap:10px;margin:16px 0;}
+  .billing-option{flex:1;border:1px solid var(--border);border-radius:8px;padding:10px 8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .billing-option:has(input:checked){border-color:var(--gold);background:#faf5e8;font-weight:700;}
+  .save-badge{font-size:10px;background:var(--gold);color:#fff;padding:2px 6px;border-radius:10px;margin-left:auto;}
   .msg{font-size:13px;margin-top:16px;padding:10px;border-radius:8px;display:none;}
   .msg.err{background:#fbe4e4;color:#a33;display:block;}
   #loadingMsg{text-align:center;padding:60px 16px;color:var(--gray);}
@@ -53,49 +57,71 @@
 
   function fmtEuro(n){ return Number(n).toLocaleString('it-IT', { minimumFractionDigits: n % 1 ? 2 : 0 }) + '€'; }
 
-  // Prezzo caricato da quantum_pricing (modificabile dall'admin, mai hardcoded qui).
+  // Prezzi caricati da quantum_pricing (modificabile dall'admin, mai hardcoded qui).
   // Il prezzo VERO addebitato lo ricalcola comunque quantum-create-checkout lato server —
-  // questo serve solo a mostrare la card correttamente, stesso schema di folium-checkout.html.
+  // questo serve solo a mostrare le card correttamente, stesso schema di folium-checkout.html.
   async function renderPlan(){
-    const { data: priceRow, error } = await sb
+    const { data: priceRows, error } = await sb
       .from('quantum_pricing')
-      .select('price, currency')
+      .select('key, price, currency')
       .eq('category', 'subscription')
-      .eq('key', 'pro_monthly')
-      .eq('active', true)
-      .maybeSingle();
+      .eq('active', true);
 
     document.getElementById('loadingMsg').style.display = 'none';
 
-    if(error || !priceRow){
+    var monthly = priceRows && priceRows.find(function(r){ return r.key === 'pro_monthly'; });
+    var annual = priceRows && priceRows.find(function(r){ return r.key === 'pro_annual'; });
+
+    if(error || !monthly){
       document.getElementById('planBlock').style.display = 'block';
       document.getElementById('planBlock').innerHTML = '<div style="text-align:center;color:var(--gray);">Prezzo non disponibile al momento. Riprova tra poco.</div>';
       return;
     }
 
     document.getElementById('planBlock').style.display = 'block';
-    document.getElementById('planBlock').innerHTML = `
-      <div class="plan">
-        <h2>Quantum Pro</h2>
-        <div class="price">${fmtEuro(priceRow.price)} <span>/ mese</span></div>
+    var featuresHtml = `
         <ul>
           <li>Valutazioni illimitate</li>
           <li>Metodo reddituale se l'immobile è locato</li>
           <li>Narrativa professionale della posizione</li>
           <li>Dati su popolazione, reddito e territorio</li>
-          <li>Prossimità servizi (scuole, farmacie, supermercati, ospedali)</li>
+          <li>Prossimità servizi (scuole, farmacie, supermercati, stazioni)</li>
           <li>Report senza pubblicità</li>
-        </ul>
+        </ul>`;
+    var annualNote = annual ? `<div class="billing-toggle">
+          <label class="billing-option"><input type="radio" name="billing" value="monthly" checked>${fmtEuro(monthly.price)} / mese</label>
+          <label class="billing-option"><input type="radio" name="billing" value="annual">${fmtEuro(annual.price)} / anno <span class="save-badge">2 mesi gratis</span></label>
+        </div>` : '';
+    document.getElementById('planBlock').innerHTML = `
+      <div class="plan">
+        <h2>Quantum Pro</h2>
+        <div class="price" id="planPriceDisplay">${fmtEuro(monthly.price)} <span>/ mese</span></div>
+        ${annualNote}
+        ${featuresHtml}
         <button onclick="startCheckout(this)">Abbonati ora</button>
-        <div class="fineprint">Abbonamento mensile ricorrente, disdicibile in qualsiasi momento. Il rinnovo è automatico finché non lo annulli.</div>
+        <div class="fineprint">Abbonamento ricorrente, disdicibile in qualsiasi momento. Il rinnovo è automatico finché non lo annulli.</div>
       </div>
     `;
+
+    if(annual){
+      document.querySelectorAll('input[name="billing"]').forEach(function(radio){
+        radio.addEventListener('change', function(){
+          var isAnnual = this.value === 'annual';
+          document.getElementById('planPriceDisplay').innerHTML = isAnnual
+            ? fmtEuro(annual.price) + " <span>/ anno</span>"
+            : fmtEuro(monthly.price) + " <span>/ mese</span>";
+        });
+      });
+    }
   }
   renderPlan();
 
   async function startCheckout(clickedBtn){
     const { data: { session } } = await sb.auth.getSession();
     if(!session){ window.location.href = 'quantum-create.html'; return; }
+
+    var billingRadio = document.querySelector('input[name="billing"]:checked');
+    var billing = billingRadio ? billingRadio.value : 'monthly';
 
     const originalText = clickedBtn.textContent;
     clickedBtn.disabled = true; clickedBtn.textContent = 'Attendere…';
@@ -108,7 +134,7 @@
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': 'Bearer ' + session.access_token
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({ billing: billing })
       });
       const data = await resp.json();
       if(!resp.ok || data.error) throw new Error(data.error || 'Errore avvio pagamento');

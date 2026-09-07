@@ -433,7 +433,7 @@ async function loadReportInner(){
       return isPro && featEmoji[k] ? (featEmoji[k] + " " + (featLabels[k] || k)) : (featLabels[k] || k);
     });
     if(activeFeatures.length){
-      addRow(propTable, "Accessori", activeFeatures.join(", "));
+      addRow(propTable, "Accessori", activeFeatures.join("<br>"));
     }
   }
   if(property.cadastral_sheet || property.cadastral_parcel || property.cadastral_category){
